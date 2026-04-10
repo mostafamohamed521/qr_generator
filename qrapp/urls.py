@@ -1,9 +1,12 @@
 from django.urls import path
 from . import views
 
+app_name = 'qrapp'
+
 urlpatterns = [
-    path('', views.index, name='index'),
-    path('generate/', views.generate_qr, name='generate_qr'),
-    path('history/', views.get_history, name='history'),
-    path('delete/<int:id>/', views.delete_history, name='delete_history'),
+    path('',                   views.index,   name='index'),
+    path('api/generate/',      views.generate, name='generate'),
+    path('api/history/',       views.history,  name='history'),
+    path('api/delete/<int:pk>/', views.delete, name='delete'),
+    path('api/clear/',         views.clear,    name='clear'),
 ]

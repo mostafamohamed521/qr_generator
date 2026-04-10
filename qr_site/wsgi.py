@@ -1,5 +1,5 @@
 """
-WSGI config for qr_generator project.
+WSGI config for qr_site project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
