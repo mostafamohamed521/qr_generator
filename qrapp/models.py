@@ -20,7 +20,8 @@ class QRCode(models.Model):
     bg_color   = models.CharField(max_length=20, default='#ffffff')
     qr_size    = models.PositiveIntegerField(default=300)
     qr_style   = models.CharField(max_length=20, default='square')
-    image_b64  = models.TextField(blank=True, default='')   # base64 PNG stored
+    image_b64  = models.TextField(blank=True, default='')
+    scan_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -29,7 +30,6 @@ class QRCode(models.Model):
         verbose_name_plural = 'QR Codes'
 
     def display_label(self):
-        """Return label, falling back to content snippet or type name."""
         if self.label:
             return self.label
         if self.content:

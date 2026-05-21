@@ -1,29 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Forge — Professional QR Code Generator</title>
-  {% load static %}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/style.css' %}">
-</head>
-<body>
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Generator{% endblock %}
+{% block nav_home %}active{% endblock %}
 
-<canvas id="bg-canvas"></canvas>
-
-<div class="page">
-
+{% block content %}
   <!-- ── Header ── -->
   <header class="header">
     <div class="logo">
       <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1.2"/>
-        <rect x="14" y="3" width="7" height="7" rx="1.2"/>
-        <rect x="3" y="14" width="7" height="7" rx="1.2"/>
-        <path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
+        <rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.2"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
       </svg>
     </div>
     <h1>QR Forge</h1>
@@ -78,6 +64,7 @@
           {% csrf_token %}
           <input type="hidden" id="qr-type"  name="type"  value="url">
           <input type="hidden" id="qr-style" name="style" value="square">
+          <input type="hidden" id="logo-b64" name="logo_b64" value="">
 
           <!-- URL -->
           <div class="section active" id="s-url">
@@ -192,6 +179,21 @@
                 <button type="button" class="style-btn"        data-style="rounded">&#9679; Rounded</button>
               </div>
             </div>
+
+            <!-- Logo embed -->
+            <div style="margin-top:16px">
+              <div class="customize-title" style="margin-bottom:8px">&#128247; Logo (optional)</div>
+              <div class="logo-upload-area" id="logo-drop">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Drop image or <label for="logo-file" style="color:var(--accent);cursor:pointer;text-decoration:underline">browse</label></span>
+                <input type="file" id="logo-file" accept="image/*" style="display:none">
+              </div>
+              <div id="logo-preview-wrap" style="display:none;margin-top:8px;display:none;align-items:center;gap:10px">
+                <img id="logo-preview-img" style="width:40px;height:40px;object-fit:contain;border-radius:8px;border:1px solid var(--border)">
+                <span id="logo-preview-name" style="font-size:.8rem;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+                <button type="button" id="logo-remove" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.1rem">✕</button>
+              </div>
+            </div>
           </div>
 
           <!-- Generate button -->
@@ -222,10 +224,8 @@
           <div class="qr-box" id="qr-box">
             <div class="qr-placeholder" id="qr-placeholder">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-                <rect x="3" y="3" width="7" height="7" rx="1"/>
-                <rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/>
-                <path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
               </svg>
               <p>Your QR code<br>will appear here</p>
             </div>
@@ -235,7 +235,11 @@
           <div class="qr-actions" id="qr-actions">
             <button class="act-btn dl" onclick="dlQR()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Save
+              PNG
+            </button>
+            <button class="act-btn dl" id="svg-btn" onclick="dlSVG()" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              SVG
             </button>
             <button class="act-btn cp" onclick="cpQR()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -261,10 +265,8 @@
         <div class="history-list" id="history-list">
           <div class="empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="3" width="7" height="7" rx="1"/>
-              <rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/>
-              <path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
             </svg>
             No QR codes yet
           </div>
@@ -273,11 +275,4 @@
 
     </div><!-- /right col -->
   </div><!-- /grid -->
-</div><!-- /page -->
-
-<!-- Toast container -->
-<div id="toasts"></div>
-
-<script src="{% static 'js/app.js' %}"></script>
-</body>
-</html>
+{% endblock %}

@@ -4,14 +4,17 @@ qr_utils.py
 All QR-code generation logic, isolated from Django.
 """
 import base64
+import io
+import re
 from io import BytesIO
 
 import qrcode
-from qrcode.constants import ERROR_CORRECT_H
+from qrcode.constants import ERROR_CORRECT_H, ERROR_CORRECT_M
+from PIL import Image, ImageDraw, ImageFont
 
 try:
     from qrcode.image.styledpil import StyledPilImage
-    from qrcode.image.styles.moduledrawers import RoundedModuleDrawer
+    from qrcode.image.styles.moduledrawers import RoundedModuleDrawer, SquareModuleDrawer
     _HAS_STYLED = True
 except ImportError:
     _HAS_STYLED = False
@@ -19,10 +22,10 @@ except ImportError:
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def _make_qr_object():
+def _make_qr_object(error_correction=ERROR_CORRECT_H):
     return qrcode.QRCode(
         version=1,
-        error_correction=ERROR_CORRECT_H,
+        error_correction=error_correction,
         box_size=10,
         border=4,
     )
@@ -34,15 +37,29 @@ def _to_base64(pil_img):
     return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
 
 
+def _hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+
 # ── main generator ────────────────────────────────────────────────────────────
 
 def generate_qr_image(data: str, size: int = 300,
                       color: str = '#000000', bg: str = '#ffffff',
-                      style: str = 'square') -> str:
+                      style: str = 'square',
+                      logo_b64: str = None) -> str:
     """Return a base64-encoded PNG data-URI of the QR code."""
     size = max(100, min(1000, int(size)))
 
-    qr = _make_qr_object()
+    # Use lower error correction if no logo, higher if logo (needs redundancy)
+    ec = ERROR_CORRECT_H if logo_b64 else ERROR_CORRECT_M
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
     qr.add_data(data)
     qr.make(fit=True)
 
@@ -59,8 +76,74 @@ def generate_qr_image(data: str, size: int = 300,
     except Exception:
         img = qr.make_image(fill_color=color, back_color=bg)
 
-    img = img.resize((size, size))
-    return _to_base64(img)
+    img = img.convert('RGBA')
+    img = img.resize((size, size), Image.LANCZOS)
+
+    # Embed logo if provided
+    if logo_b64:
+        try:
+            # strip data URI prefix if present
+            if ',' in logo_b64:
+                logo_b64 = logo_b64.split(',', 1)[1]
+            logo_data = base64.b64decode(logo_b64)
+            logo = Image.open(BytesIO(logo_data)).convert('RGBA')
+
+            logo_size = int(size * 0.22)
+            logo = logo.resize((logo_size, logo_size), Image.LANCZOS)
+
+            # white circle background for logo
+            bg_circle = Image.new('RGBA', (logo_size + 16, logo_size + 16), (255, 255, 255, 255))
+            draw = ImageDraw.Draw(bg_circle)
+            draw.ellipse([0, 0, logo_size + 15, logo_size + 15], fill=(255, 255, 255, 255))
+
+            pos_bg = ((size - logo_size - 16) // 2, (size - logo_size - 16) // 2)
+            pos = ((size - logo_size) // 2, (size - logo_size) // 2)
+
+            img.paste(bg_circle, pos_bg, bg_circle)
+            img.paste(logo, pos, logo)
+        except Exception:
+            pass  # logo embed failed silently
+
+    # Convert back to RGB for PNG save
+    final = Image.new('RGB', img.size, (255, 255, 255))
+    final.paste(img, mask=img.split()[3] if img.mode == 'RGBA' else None)
+
+    return _to_base64(final)
+
+
+def generate_qr_svg(data: str, color: str = '#000000', bg: str = '#ffffff') -> str:
+    """Return an SVG string of the QR code."""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    matrix = qr.get_matrix()
+    n = len(matrix)
+    cell = 10
+    total = n * cell
+
+    rects = []
+    for r, row in enumerate(matrix):
+        for c, val in enumerate(row):
+            if val:
+                x = c * cell
+                y = r * cell
+                rects.append(f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" fill="{color}"/>')
+
+    svg = (
+        f'<?xml version="1.0" encoding="UTF-8"?>'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total} {total}" '
+        f'width="{total}" height="{total}">'
+        f'<rect width="{total}" height="{total}" fill="{bg}"/>'
+        + ''.join(rects) +
+        '</svg>'
+    )
+    return svg
 
 
 # ── content builders ──────────────────────────────────────────────────────────
