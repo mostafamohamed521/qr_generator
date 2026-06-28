@@ -5,6 +5,20 @@
 
 'use strict';
 
+// ── Theme (dark/light) ───────────────────────────────────────────────────────
+(function initTheme() {
+  const saved = localStorage.getItem('qr-theme');
+  const preferred = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', preferred);
+
+  const btn = document.getElementById('theme-toggle');
+  btn?.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('qr-theme', next);
+  });
+})();
+
 // ── State ──────────────────────────────────────────────────────────────────
 let currentImage = '';
 let lastGeneratedId = null;
@@ -93,6 +107,7 @@ function toast(msg, type = 'info') {
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }, 3200);
 }
+window.showToast = toast;
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
 tabsEl?.addEventListener('click', e => {

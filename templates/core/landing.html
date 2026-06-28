@@ -1,0 +1,96 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "QR Forge" %}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-badge">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+    {% trans "Built for individuals & teams" %}
+  </div>
+  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2.2rem,5.5vw,3.6rem);letter-spacing:-1.5px;line-height:1.08;background:linear-gradient(120deg,var(--accent) 0%,var(--accent-2) 55%,var(--accent-3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;max-width:760px;margin:0 auto 18px">
+    {% trans "QR codes that look as good as they work" %}
+  </h1>
+  <p style="color:var(--text-muted);max-width:540px;margin:0 auto;font-size:1rem">
+    {% trans "Generate, customize, and track QR codes for URLs, WiFi, contacts and more — with analytics, bulk export, and team collaboration built in." %}
+  </p>
+  <div class="hero-cta">
+    <a href="{% url 'accounts:register' %}" class="btn-primary">{% trans "Get started free" %}</a>
+    <a href="{% url 'core:pricing' %}" class="btn-secondary">{% trans "See pricing" %}</a>
+  </div>
+</section>
+
+<section class="stats-strip">
+  <div><div class="num">50K+</div><div class="lbl">{% trans "QR codes generated" %}</div></div>
+  <div><div class="num">8</div><div class="lbl">{% trans "QR types supported" %}</div></div>
+  <div><div class="num">99.9%</div><div class="lbl">{% trans "Uptime" %}</div></div>
+  <div><div class="num">2</div><div class="lbl">{% trans "Languages — AR / EN" %}</div></div>
+</section>
+
+<section class="lp-section">
+  <div class="lp-section-head">
+    <h2>{% trans "Everything you need, in one place" %}</h2>
+    <p>{% trans "From a single QR code to a full marketing campaign." %}</p>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
+      <h3>{% trans "All QR types" %}</h3>
+      <p>{% trans "URL, text, contact cards, WiFi, SMS, email, phone, and location — all in one generator." %}</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div>
+      <h3>{% trans "Full customization" %}</h3>
+      <p>{% trans "Colors, shapes, sizes, and your own logo embedded right in the code." %}</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      <h3>{% trans "Analytics & tracking" %}</h3>
+      <p>{% trans "See scan counts and activity trends for every code you create." %}</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg></div>
+      <h3>{% trans "Bulk generation" %}</h3>
+      <p>{% trans "Upload a list and generate hundreds of codes in one click, exported as a ZIP." %}</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <h3>{% trans "Built for teams" %}</h3>
+      <p>{% trans "Shared workspaces, roles, and an activity log for everyone on the team." %}</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></div>
+      <h3>{% trans "Developer API" %}</h3>
+      <p>{% trans "Generate and manage QR codes programmatically with API keys and webhooks." %}</p>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section">
+  <div class="lp-section-head">
+    <h2>{% trans "How it works" %}</h2>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <h3>{% trans "Create an account" %}</h3>
+      <p>{% trans "Sign up free in seconds — no credit card required." %}</p>
+    </div>
+    <div class="step">
+      <h3>{% trans "Design your QR code" %}</h3>
+      <p>{% trans "Pick a type, customize the look, and preview it live." %}</p>
+    </div>
+    <div class="step">
+      <h3>{% trans "Share & track" %}</h3>
+      <p>{% trans "Download it and watch scans roll in on your analytics dashboard." %}</p>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section">
+  <div class="cta-banner">
+    <h2>{% trans "Ready to create your first QR code?" %}</h2>
+    <p>{% trans "Free forever for individuals — upgrade anytime for teams and advanced features." %}</p>
+    <a href="{% url 'accounts:register' %}" class="btn-primary">{% trans "Get started free" %}</a>
+  </div>
+</section>
+{% endblock %}

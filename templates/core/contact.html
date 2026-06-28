@@ -1,0 +1,23 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "Contact" %}{% endblock %}
+{% block nav_contact %}active{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,2.8rem);margin-bottom:14px">{% trans "Get in touch" %}</h1>
+  <p style="color:var(--text-muted)">{% trans "Questions, feedback, or partnership ideas — we'd love to hear from you." %}</p>
+</section>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-field">
+      <label>{% trans "Your email" %}</label>
+      <input type="email" class="fi" placeholder="you@example.com">
+    </div>
+    <div class="auth-field">
+      <label>{% trans "Message" %}</label>
+      <textarea class="ft" rows="4" placeholder="{% trans 'How can we help?' %}"></textarea>
+    </div>
+    <button class="btn-primary" style="width:100%">{% trans "Send message" %}</button>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% trans "Profile" %}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:480px;margin:40px auto;padding:28px">
+  <h1 style="font-family:'Syne',sans-serif;font-size:1.4rem;margin-bottom:16px">{% trans "Your profile" %}</h1>
+  <p style="color:var(--text-muted);font-size:.85rem">
+    {% trans "Avatar, theme & language preference, 2FA settings are built in Sprint 1." %}
+  </p>
+</div>
+{% endblock %}

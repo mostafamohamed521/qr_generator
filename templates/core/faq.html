@@ -1,0 +1,14 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "FAQ" %}{% endblock %}
+{% block nav_faq %}active{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,2.8rem);margin-bottom:14px">{% trans "Frequently Asked Questions" %}</h1>
+</section>
+<div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
+  <div class="feature-card"><h3>{% trans "Is QR Forge free to use?" %}</h3><p>{% trans "Yes — the Free plan covers up to 50 QR codes a month, no credit card needed." %}</p></div>
+  <div class="feature-card"><h3>{% trans "Can I customize the QR code design?" %}</h3><p>{% trans "Yes, you can set colors, shapes, size, and add your own logo." %}</p></div>
+  <div class="feature-card"><h3>{% trans "Do you support teams?" %}</h3><p>{% trans "Yes, the Pro plan includes shared team workspaces with roles." %}</p></div>
+</div>
+{% endblock %}

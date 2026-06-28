@@ -1,0 +1,12 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "About" %}{% endblock %}
+{% block nav_about %}active{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,2.8rem);margin-bottom:14px">{% trans "About QR Forge" %}</h1>
+  <p style="color:var(--text-muted);max-width:560px;margin:0 auto">
+    {% trans "We're building the simplest way for individuals and teams to create, customize, and track QR codes — without the clutter." %}
+  </p>
+</section>
+{% endblock %}
