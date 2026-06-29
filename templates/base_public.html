@@ -7,7 +7,7 @@
   <title>{% block title %}QR Forge{% endblock %} — {% trans "Professional QR Code Generator" %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   <script>
     (function(){var t=localStorage.getItem('qr-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
@@ -26,10 +26,12 @@
     </svg>
     <span>QR Forge</span>
   </a>
-  <div class="nav-links">
+
+  <div class="nav-links" id="nav-links">
     <a href="{% url 'core:pricing' %}" class="nav-link {% block nav_pricing %}{% endblock %}"><span>{% trans "Pricing" %}</span></a>
     <a href="{% url 'core:about' %}" class="nav-link {% block nav_about %}{% endblock %}"><span>{% trans "About" %}</span></a>
     <a href="{% url 'core:faq' %}" class="nav-link {% block nav_faq %}{% endblock %}"><span>{% trans "FAQ" %}</span></a>
+    <a href="{% url 'core:contact' %}" class="nav-link {% block nav_contact %}{% endblock %}"><span>{% trans "Contact" %}</span></a>
 
     {% if user.is_authenticated %}
       <a href="{% url 'qrapp:index' %}" class="btn-secondary" style="padding:8px 16px;font-size:.82rem">{% trans "Dashboard" %}</a>
@@ -50,25 +52,53 @@
       <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
       <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
+
+    <button class="mobile-menu-btn" id="mobile-menu-btn" type="button" aria-label="{% trans 'Menu' %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
   </div>
 </nav>
 
 <div class="page">
   {% block content %}{% endblock %}
 
-  <footer class="site-footer">
-    <div>© 2026 QR Forge. {% trans "All rights reserved." %}</div>
-    <div class="f-links">
-      <a href="{% url 'core:about' %}">{% trans "About" %}</a>
+  <footer class="site-footer-full">
+    <div class="footer-col footer-brand">
+      <div class="nav-logo" style="margin-bottom:10px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></svg>
+        <span>QR Forge</span>
+      </div>
+      <p>{% trans "Generate, customize, and track QR codes — built for individuals and teams." %}</p>
+      <form class="newsletter-form">
+        <input type="email" placeholder="{% trans 'Your email' %}">
+        <button type="button">{% trans "Subscribe" %}</button>
+      </form>
+    </div>
+    <div class="footer-col">
+      <div class="footer-title">{% trans "Product" %}</div>
       <a href="{% url 'core:pricing' %}">{% trans "Pricing" %}</a>
-      <a href="{% url 'core:faq' %}">{% trans "FAQ" %}</a>
+      <a href="{% url 'qrapp:index' %}">{% trans "Generator" %}</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-title">{% trans "Company" %}</div>
+      <a href="{% url 'core:about' %}">{% trans "About" %}</a>
       <a href="{% url 'core:contact' %}">{% trans "Contact" %}</a>
     </div>
+    <div class="footer-col">
+      <div class="footer-title">{% trans "Support" %}</div>
+      <a href="{% url 'core:faq' %}">{% trans "FAQ" %}</a>
+    </div>
   </footer>
+  <div class="site-footer-bottom">© 2026 QR Forge. {% trans "All rights reserved." %}</div>
 </div>
 
 <div id="toasts"></div>
 <script src="{% static 'js/app.js' %}"></script>
+<script>
+document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

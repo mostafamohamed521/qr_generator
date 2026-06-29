@@ -67,13 +67,11 @@ document.querySelectorAll('.pass-toggle').forEach(btn => {
     input.type = input.type === 'password' ? 'text' : 'password';
   });
 });
-
 const passInput = document.getElementById('reg-pass');
 const bars = document.querySelectorAll('#pass-strength i');
 const label = document.getElementById('pass-strength-label');
 const colors = ['#e0395c', '#ff9466', '#f0c419', '#14d8a4'];
 const labels = ['{% trans "Weak" %}', '{% trans "Fair" %}', '{% trans "Good" %}', '{% trans "Strong" %}'];
-
 passInput?.addEventListener('input', () => {
   const v = passInput.value;
   let score = 0;
@@ -84,7 +82,6 @@ passInput?.addEventListener('input', () => {
   bars.forEach((bar, i) => { bar.style.background = i < score ? colors[Math.max(score - 1, 0)] : 'var(--border)'; });
   label.textContent = v.length === 0 ? '{% trans "At least 8 characters" %}' : labels[Math.max(score - 1, 0)];
 });
-
 document.getElementById('register-form')?.addEventListener('submit', (e) => {
   e.preventDefault();
   window.showToast?.('{% trans "Real registration is wired up in Sprint 1." %}', 'info');

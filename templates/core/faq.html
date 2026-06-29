@@ -4,11 +4,30 @@
 {% block nav_faq %}active{% endblock %}
 {% block content %}
 <section class="hero">
-  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,2.8rem);margin-bottom:14px">{% trans "Frequently Asked Questions" %}</h1>
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,2.8rem);margin-bottom:14px">{% trans "Frequently Asked Questions" %}</h1>
 </section>
-<div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
-  <div class="feature-card"><h3>{% trans "Is QR Forge free to use?" %}</h3><p>{% trans "Yes — the Free plan covers up to 50 QR codes a month, no credit card needed." %}</p></div>
-  <div class="feature-card"><h3>{% trans "Can I customize the QR code design?" %}</h3><p>{% trans "Yes, you can set colors, shapes, size, and add your own logo." %}</p></div>
-  <div class="feature-card"><h3>{% trans "Do you support teams?" %}</h3><p>{% trans "Yes, the Pro plan includes shared team workspaces with roles." %}</p></div>
+<div style="max-width:680px;margin:0 auto">
+  {% for q in faqs %}
+  <div class="faq-item">
+    <button type="button" class="faq-q">
+      <span>{{ q.q }}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="faq-a">{{ q.a }}</div>
+  </div>
+  {% endfor %}
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.faq-q').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const ans = btn.nextElementSibling;
+    const isOpen = ans.classList.contains('open');
+    document.querySelectorAll('.faq-a').forEach(a => a.classList.remove('open'));
+    document.querySelectorAll('.faq-q').forEach(b => b.classList.remove('open'));
+    if (!isOpen) { ans.classList.add('open'); btn.classList.add('open'); }
+  });
+});
+</script>
 {% endblock %}
