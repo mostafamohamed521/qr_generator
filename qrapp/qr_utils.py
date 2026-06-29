@@ -50,6 +50,8 @@ def generate_qr_image(data: str, size: int = 300,
                       logo_b64: str = None) -> str:
     """Return a base64-encoded PNG data-URI of the QR code."""
     size = max(100, min(1000, int(size)))
+    transparent_bg = isinstance(bg, str) and bg.strip().lower() == 'transparent'
+    fill_bg = '#ffffff' if transparent_bg else bg
 
     # Use lower error correction if no logo, higher if logo (needs redundancy)
     ec = ERROR_CORRECT_H if logo_b64 else ERROR_CORRECT_M
@@ -69,14 +71,24 @@ def generate_qr_image(data: str, size: int = 300,
                 image_factory=StyledPilImage,
                 module_drawer=RoundedModuleDrawer(),
                 fill_color=color,
-                back_color=bg,
+                back_color=fill_bg,
             )
         else:
-            img = qr.make_image(fill_color=color, back_color=bg)
+            img = qr.make_image(fill_color=color, back_color=fill_bg)
     except Exception:
-        img = qr.make_image(fill_color=color, back_color=bg)
+        img = qr.make_image(fill_color=color, back_color=fill_bg)
 
     img = img.convert('RGBA')
+
+    if transparent_bg:
+        white = (255, 255, 255)
+        pixels = img.load()
+        for y in range(img.height):
+            for x in range(img.width):
+                r, g, b, a = pixels[x, y]
+                if (r, g, b) == white:
+                    pixels[x, y] = (r, g, b, 0)
+
     img = img.resize((size, size), Image.LANCZOS)
 
     # Embed logo if provided
@@ -104,7 +116,13 @@ def generate_qr_image(data: str, size: int = 300,
         except Exception:
             pass  # logo embed failed silently
 
-    # Convert back to RGB for PNG save
+    if transparent_bg:
+        # Preserve alpha channel — save directly as RGBA PNG
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
+
+    # Convert back to RGB for PNG save (opaque background)
     final = Image.new('RGB', img.size, (255, 255, 255))
     final.paste(img, mask=img.split()[3] if img.mode == 'RGBA' else None)
 

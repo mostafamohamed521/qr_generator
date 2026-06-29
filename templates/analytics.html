@@ -88,7 +88,7 @@
 {% block extra_js %}
 <script>
 (async () => {
-  const res = await fetch('/api/analytics/');
+  const res = await fetch(`${window.APP_BASE}api/analytics/`);
   const d = await res.json();
   if (!d.ok) return;
 

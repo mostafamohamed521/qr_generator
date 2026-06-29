@@ -21,6 +21,7 @@
 
 // ── State ──────────────────────────────────────────────────────────────────
 let currentImage = '';
+let currentContent = '';
 let lastGeneratedId = null;
 
 // ── DOM references (index page only — guard with optional chaining) ─────────
@@ -177,35 +178,65 @@ logoRemove?.addEventListener('click', () => {
 });
 
 // ── Generate ────────────────────────────────────────────────────────────────
-form?.addEventListener('submit', async e => {
-  e.preventDefault();
+const transparentCheck = document.getElementById('transparent-bg-check');
+const bgColorInput = document.getElementById('bg-color-input');
+
+transparentCheck?.addEventListener('change', () => {
+  if (bgColorInput) bgColorInput.disabled = transparentCheck.checked;
+  triggerLivePreview();
+});
+
+async function runGenerate({ silent = false } = {}) {
   if (!genBtn) return;
-  genBtn.classList.add('loading');
-  genBtn.disabled = true;
+  if (!silent) { genBtn.classList.add('loading'); genBtn.disabled = true; }
 
   try {
-    const fd  = new FormData(form);
-    const res = await fetch('/api/generate/', { method: 'POST', body: fd });
+    const fd = new FormData(form);
+    if (transparentCheck?.checked) fd.set('bg_color', 'transparent');
+
+    const res = await fetch(`${window.APP_BASE}api/generate/`, { method: 'POST', body: fd });
     const data = await res.json();
 
     if (data.ok) {
       currentImage = data.image;
+      currentContent = data.content || '';
       showQR(data.image);
-      loadHistory();
-      toast('QR code generated!', 'ok');
-      // get last saved id
-      const hist = await (await fetch('/api/history/')).json();
-      if (hist.ok && hist.items.length) lastGeneratedId = hist.items[0].id;
-    } else {
+      if (!silent) {
+        loadHistory();
+        toast('QR code generated!', 'ok');
+        const hist = await (await fetch(`${window.APP_BASE}api/history/`)).json();
+        if (hist.ok && hist.items.length) lastGeneratedId = hist.items[0].id;
+      }
+    } else if (!silent) {
       toast(data.error || 'Failed to generate QR code', 'err');
     }
   } catch {
-    toast('Connection error — please try again', 'err');
+    if (!silent) toast('Connection error — please try again', 'err');
   }
 
-  genBtn.classList.remove('loading');
-  genBtn.disabled = false;
+  if (!silent) { genBtn.classList.remove('loading'); genBtn.disabled = false; }
+}
+
+form?.addEventListener('submit', async e => {
+  e.preventDefault();
+  await runGenerate({ silent: false });
 });
+
+// Live preview: regenerate quietly as the user edits the active fields
+let liveTimer = null;
+function triggerLivePreview() {
+  if (!form) return;
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(() => {
+    // Only auto-preview if all currently-visible required fields have content
+    const requiredFilled = [...form.querySelectorAll('input[required], textarea[required]')]
+      .filter(el => el.offsetParent !== null) // visible only
+      .every(el => el.value.trim().length > 0);
+    if (requiredFilled) runGenerate({ silent: true });
+  }, 600);
+}
+form?.addEventListener('input', triggerLivePreview);
+form?.addEventListener('change', triggerLivePreview);
 
 function showQR(src) {
   if (!qrPlaceholder || !qrImage || !qrActions) return;
@@ -233,7 +264,7 @@ function dlQR() {
 
 function dlSVG() {
   if (!lastGeneratedId) return;
-  window.location.href = `/api/export-svg/${lastGeneratedId}/`;
+  window.location.href = `${window.APP_BASE}api/export-svg/${lastGeneratedId}/`;
 }
 
 function cpQR() {
@@ -245,6 +276,32 @@ function cpQR() {
       toast('Copied to clipboard!', 'ok');
     })
     .catch(() => toast('Copy not supported in this browser', 'err'));
+}
+
+function cpContent() {
+  if (!currentContent) return;
+  navigator.clipboard.writeText(currentContent)
+    .then(() => toast('Content copied!', 'ok'))
+    .catch(() => toast('Copy not supported in this browser', 'err'));
+}
+
+function dlJPG() {
+  if (!currentImage) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/jpeg', 0.95);
+    a.download = 'qrcode.jpg';
+    a.click();
+  };
+  img.src = currentImage;
 }
 
 function shareQR() {
@@ -265,7 +322,7 @@ function shareQR() {
 async function loadHistory() {
   if (!historyList) return;
   try {
-    const res  = await fetch('/api/history/');
+    const res  = await fetch(`${window.APP_BASE}api/history/`);
     const data = await res.json();
     if (!data.ok) return;
 
@@ -303,7 +360,7 @@ function loadFromHistory(src) {
 async function delQR(id, btn) {
   const row = btn.closest('.history-item');
   row.style.opacity = '0.4';
-  const res  = await fetch(`/api/delete/${id}/`, {
+  const res  = await fetch(`${window.APP_BASE}api/delete/${id}/`, {
     method: 'POST',
     headers: { 'X-CSRFToken': csrfToken() },
   });
@@ -314,7 +371,7 @@ async function delQR(id, btn) {
 
 async function clearAll() {
   if (!confirm('Clear all QR code history?')) return;
-  const res  = await fetch('/api/clear/', {
+  const res  = await fetch(`${window.APP_BASE}api/clear/`, {
     method: 'POST',
     headers: { 'X-CSRFToken': csrfToken() },
   });

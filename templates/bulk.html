@@ -152,7 +152,7 @@ async function runBulk() {
   };
 
   try {
-    const res = await fetch('/api/bulk/', {
+    const res = await fetch(`${window.APP_BASE}api/bulk/`, {
       method: 'POST',
       headers: {'Content-Type':'application/json', 'X-CSRFToken': csrfToken()},
       body: JSON.stringify(payload),

@@ -584,6 +584,14 @@ html[dir="rtl"] .faq-q { text-align: right; }
   border: 1px solid var(--border); cursor: pointer;
   background: none; padding: 2px; appearance: none;
 }
+.color-field input[type=color]:disabled { opacity: .4; cursor: not-allowed; }
+
+.transparent-toggle {
+  display: flex; align-items: center; gap: 6px; align-self: flex-end;
+  margin-bottom: 8px; font-size: .78rem; color: var(--text-muted);
+  cursor: pointer; user-select: none;
+}
+.transparent-toggle input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
 
 .range-row {
   display: flex; align-items: center; gap: 10px; margin-bottom: 2px;
