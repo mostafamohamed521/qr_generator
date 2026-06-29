@@ -24,10 +24,16 @@
       <h1>{% trans "Log in" %}</h1>
       <p class="sub">{% trans "Enter your details to access your account" %}</p>
 
+      {% if form.non_field_errors %}
+      <div class="field-error" style="display:block;margin-bottom:14px">{{ form.non_field_errors.0 }}</div>
+      {% endif %}
+
       <form method="post" novalidate id="login-form">
+        {% csrf_token %}
         <div class="auth-field">
           <label>{% trans "Email" %}</label>
-          <input type="email" name="email" class="fi" placeholder="you@example.com" required>
+          <input type="email" name="email" class="fi" placeholder="you@example.com" value="{{ form.email.value|default:'' }}" required>
+          {% if form.email.errors %}<div class="field-error" style="display:block">{{ form.email.errors.0 }}</div>{% endif %}
         </div>
         <div class="auth-field">
           <label>{% trans "Password" %}</label>
@@ -62,10 +68,6 @@ document.querySelectorAll('.pass-toggle').forEach(btn => {
     const input = document.getElementById(btn.dataset.target);
     input.type = input.type === 'password' ? 'text' : 'password';
   });
-});
-document.getElementById('login-form')?.addEventListener('submit', (e) => {
-  e.preventDefault();
-  window.showToast?.('{% trans "Real authentication is wired up in Sprint 1." %}', 'info');
 });
 </script>
 {% endblock %}

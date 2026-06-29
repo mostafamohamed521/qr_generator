@@ -35,6 +35,7 @@
 
     {% if user.is_authenticated %}
       <a href="{% url 'qrapp:index' %}" class="btn-secondary" style="padding:8px 16px;font-size:.82rem">{% trans "Dashboard" %}</a>
+      <a href="{% url 'accounts:logout' %}" class="nav-link">{% trans "Log out" %}</a>
     {% else %}
       <a href="{% url 'accounts:login' %}" class="nav-link">{% trans "Log in" %}</a>
       <a href="{% url 'accounts:register' %}" class="btn-primary" style="padding:8px 18px;font-size:.82rem">{% trans "Get started" %}</a>

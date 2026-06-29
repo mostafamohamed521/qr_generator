@@ -25,13 +25,16 @@
       <p class="sub">{% trans "Free forever — no credit card required" %}</p>
 
       <form method="post" novalidate id="register-form">
+        {% csrf_token %}
         <div class="auth-field">
           <label>{% trans "Full name" %}</label>
-          <input type="text" name="name" class="fi" placeholder="{% trans 'Your name' %}" required>
+          <input type="text" name="name" class="fi" placeholder="{% trans 'Your name' %}" value="{{ form.name.value|default:'' }}" required>
+          {% if form.name.errors %}<div class="field-error" style="display:block">{{ form.name.errors.0 }}</div>{% endif %}
         </div>
         <div class="auth-field">
           <label>{% trans "Email" %}</label>
-          <input type="email" name="email" class="fi" placeholder="you@example.com" required>
+          <input type="email" name="email" class="fi" placeholder="you@example.com" value="{{ form.email.value|default:'' }}" required>
+          {% if form.email.errors %}<div class="field-error" style="display:block">{{ form.email.errors.0 }}</div>{% endif %}
         </div>
         <div class="auth-field">
           <label>{% trans "Password" %}</label>
@@ -41,6 +44,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
+          {% if form.password.errors %}<div class="field-error" style="display:block">{{ form.password.errors.0 }}</div>{% endif %}
           <div class="pass-strength" id="pass-strength">
             <i></i><i></i><i></i><i></i>
           </div>
@@ -82,9 +86,6 @@ passInput?.addEventListener('input', () => {
   bars.forEach((bar, i) => { bar.style.background = i < score ? colors[Math.max(score - 1, 0)] : 'var(--border)'; });
   label.textContent = v.length === 0 ? '{% trans "At least 8 characters" %}' : labels[Math.max(score - 1, 0)];
 });
-document.getElementById('register-form')?.addEventListener('submit', (e) => {
-  e.preventDefault();
-  window.showToast?.('{% trans "Real registration is wired up in Sprint 1." %}', 'info');
-});
+
 </script>
 {% endblock %}
