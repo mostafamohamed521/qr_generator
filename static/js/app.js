@@ -319,10 +319,21 @@ function shareQR() {
 }
 
 // ── History ─────────────────────────────────────────────────────────────────
+let histCurrentPage = 1;
+
+function histBuildParams() {
+  const q    = document.getElementById('hist-search')?.value.trim() || '';
+  const type = document.getElementById('hist-type-filter')?.value || 'all';
+  const params = new URLSearchParams({ page: histCurrentPage });
+  if (q)           params.set('q', q);
+  if (type !== 'all') params.set('type', type);
+  return params;
+}
+
 async function loadHistory() {
   if (!historyList) return;
   try {
-    const res  = await fetch(`${window.APP_BASE}api/history/`);
+    const res  = await fetch(`${window.APP_BASE}api/history/?${histBuildParams()}`);
     const data = await res.json();
     if (!data.ok) return;
 
@@ -332,15 +343,17 @@ async function loadHistory() {
           <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
           <rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
         </svg>No QR codes yet</div>`;
+      const pag = document.getElementById('hist-pagination');
+      if (pag) pag.style.display = 'none';
       return;
     }
 
     historyList.innerHTML = data.items.map(q => `
-      <div class="history-item" onclick="loadFromHistory('${esc(q.image)}')">
+      <div class="history-item" onclick="loadFromHistory('${esc(q.image)}','${esc(q.content)}')">
         <img src="${esc(q.image)}" alt="QR">
         <div class="history-meta">
           <div class="history-label">${esc(q.label)}</div>
-          <div class="history-sub">${esc(q.type_label)} · ${esc(q.created_at)}</div>
+          <div class="history-sub">${esc(q.type_label)} · ${esc(q.created_at)}${q.scan_count ? ` · <b>${q.scan_count} scans</b>` : ''}</div>
         </div>
         <button class="history-del" onclick="event.stopPropagation();delQR(${q.id},this)" title="Delete">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
@@ -349,13 +362,48 @@ async function loadHistory() {
           </svg>
         </button>
       </div>`).join('');
+
+    const pag = document.getElementById('hist-pagination');
+    const info = document.getElementById('hist-page-info');
+    const prev = document.getElementById('hist-prev');
+    const next = document.getElementById('hist-next');
+    if (pag && data.pages > 1) {
+      pag.style.display = 'flex';
+      info.textContent = `${data.page} / ${data.pages}`;
+      if (prev) prev.disabled = data.page <= 1;
+      if (next) next.disabled = data.page >= data.pages;
+    } else if (pag) {
+      pag.style.display = 'none';
+    }
   } catch { /* network err */ }
 }
 
-function loadFromHistory(src) {
+function histGoPage(delta) {
+  histCurrentPage = Math.max(1, histCurrentPage + delta);
+  loadHistory();
+}
+
+function loadFromHistory(src, content) {
   currentImage = src;
+  currentContent = content || '';
   showQR(src);
 }
+
+function exportCSV() {
+  const params = histBuildParams();
+  window.location.href = `${window.APP_BASE}api/export-csv/?${params}`;
+}
+
+let histSearchTimer = null;
+document.getElementById('hist-search')?.addEventListener('input', () => {
+  clearTimeout(histSearchTimer);
+  histCurrentPage = 1;
+  histSearchTimer = setTimeout(loadHistory, 350);
+});
+document.getElementById('hist-type-filter')?.addEventListener('change', () => {
+  histCurrentPage = 1;
+  loadHistory();
+});
 
 async function delQR(id, btn) {
   const row = btn.closest('.history-item');

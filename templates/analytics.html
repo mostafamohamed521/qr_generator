@@ -3,192 +3,170 @@
 {% block title %}Analytics{% endblock %}
 {% block nav_analytics %}active{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<header class="header" style="margin-bottom:36px">
-  <h1 style="font-size:clamp(1.6rem,4vw,2.6rem)">Analytics</h1>
-  <p>Insights on your QR code generation activity</p>
-</header>
+<div class="header">
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Analytics</h1>
+  <p style="color:var(--text-muted)">Your QR code activity at a glance</p>
+</div>
 
-<!-- Stats row -->
+<!-- stat cards row -->
 <div class="stats-row" id="stats-row">
-  <div class="stat-card">
-    <div class="stat-icon" style="background:linear-gradient(135deg,var(--accent),var(--accent-2))">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/></svg>
-    </div>
-    <div class="stat-body">
-      <div class="stat-val" id="s-total">—</div>
-      <div class="stat-label">Total Generated</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:linear-gradient(135deg,var(--accent-2),#e96ef7)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-    </div>
-    <div class="stat-body">
-      <div class="stat-val" id="s-today">—</div>
-      <div class="stat-label">Created Today</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:linear-gradient(135deg,var(--accent-3),#f76e6e)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    </div>
-    <div class="stat-body">
-      <div class="stat-val" id="s-week">—</div>
-      <div class="stat-label">This Week</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background:linear-gradient(135deg,#4ef0c4,#4e9af0)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    </div>
-    <div class="stat-body">
-      <div class="stat-val" id="s-top-type">—</div>
-      <div class="stat-label">Top Type</div>
-    </div>
-  </div>
+  <div class="stat-card"><div class="stat-val" id="stat-total">—</div><div class="stat-lbl">Total codes</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-types">—</div><div class="stat-lbl">Types used</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-week">—</div><div class="stat-lbl">This week</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-scans">—</div><div class="stat-lbl">Total scans</div></div>
 </div>
 
-<!-- Charts row -->
-<div class="charts-grid">
-  <!-- Activity chart -->
-  <div class="card" style="padding:24px">
-    <div class="card-title" style="margin-bottom:20px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      Activity — Last 7 Days
+<!-- charts grid -->
+<div class="grid" style="margin-top:18px">
+  <div>
+    <div class="card" style="padding:22px">
+      <div class="card-header" style="margin-bottom:16px">
+        <span class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Activity — Last 7 Days
+        </span>
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="activity-chart"></canvas>
+      </div>
     </div>
-    <div class="chart-wrap" id="activity-chart">
-      <div class="chart-loading">Loading…</div>
+
+    <div class="card" style="padding:22px;margin-top:16px">
+      <div class="card-header" style="margin-bottom:16px">
+        <span class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/></svg>
+          QR Types Breakdown
+        </span>
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="type-chart"></canvas>
+      </div>
     </div>
   </div>
 
-  <!-- Type donut -->
-  <div class="card" style="padding:24px">
-    <div class="card-title" style="margin-bottom:20px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
-      QR Types Breakdown
+  <div>
+    <div class="card" style="padding:22px">
+      <div class="card-header" style="margin-bottom:14px">
+        <span class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Recent Codes
+        </span>
+        <a href="/app/" class="act-btn" style="text-decoration:none;padding:5px 10px;font-size:.75rem">&#43; Create</a>
+      </div>
+      <div id="recent-list"></div>
     </div>
-    <div id="donut-wrap" style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
-      <canvas id="donut-canvas" width="140" height="140"></canvas>
-      <div id="donut-legend" style="flex:1;min-width:120px"></div>
-    </div>
-  </div>
-</div>
 
-<!-- Recent table -->
-<div class="card" style="margin-top:22px;padding:24px">
-  <div class="card-title" style="margin-bottom:20px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    Recent QR Codes
+    <div class="card" style="padding:22px;margin-top:16px">
+      <div class="card-header" style="margin-bottom:14px">
+        <span class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2"/></svg>
+          Styles Used
+        </span>
+      </div>
+      <div id="style-list"></div>
+    </div>
   </div>
-  <div id="recent-table"></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-(async () => {
-  const res = await fetch(`${window.APP_BASE}api/analytics/`);
-  const d = await res.json();
-  if (!d.ok) return;
+async function loadAnalytics() {
+  const res  = await fetch(`${window.APP_BASE}api/analytics/`);
+  const data = await res.json();
+  if (!data.ok) return;
 
-  // Stats
-  document.getElementById('s-total').textContent = d.total;
+  // stat cards
+  document.getElementById('stat-total').textContent  = data.total || 0;
+  document.getElementById('stat-types').textContent  = data.by_type.length;
+  document.getElementById('stat-week').textContent   = data.by_day.reduce((s, d) => s + d.count, 0);
+  document.getElementById('stat-scans').textContent  = data.total_scans || 0;
 
-  const today = d.by_day.find(x => {
-    const now = new Date();
-    return x.day === now.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','%20');
+  // colour helpers — use CSS vars resolved from body
+  const style    = getComputedStyle(document.documentElement);
+  const accent   = style.getPropertyValue('--accent').trim();
+  const accent2  = style.getPropertyValue('--accent-2').trim();
+  const muted    = style.getPropertyValue('--text-muted').trim();
+  const chartText = style.getPropertyValue('--text').trim();
+  const gridColor = 'rgba(128,128,128,0.10)';
+
+  const baseOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: chartText, font: { family: 'Inter', size: 11 } } },
+    },
+    scales: {
+      x: { ticks: { color: muted, font: { size: 11 } }, grid: { color: gridColor } },
+      y: { ticks: { color: muted, font: { size: 11 } }, grid: { color: gridColor }, beginAtZero: true },
+    },
+  };
+
+  // Activity chart (line)
+  const days   = data.by_day.map(d => d.day);
+  const counts = data.by_day.map(d => d.count);
+  new Chart(document.getElementById('activity-chart'), {
+    type: 'line',
+    data: {
+      labels: days.length ? days : ['No data'],
+      datasets: [{
+        label: 'QR codes',
+        data: counts.length ? counts : [0],
+        borderColor: accent,
+        backgroundColor: accent + '22',
+        fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: accent,
+      }],
+    },
+    options: { ...baseOpts },
   });
-  document.getElementById('s-today').textContent = today?.count ?? 0;
 
-  const weekTotal = d.by_day.reduce((a,b) => a + b.count, 0);
-  document.getElementById('s-week').textContent = weekTotal;
+  // Type breakdown chart (bar)
+  const typeColors = [accent, accent2, '#ff9466', '#f0c419', '#e0395c', '#8b5cf6', '#06b6d4', '#84cc16'];
+  new Chart(document.getElementById('type-chart'), {
+    type: 'bar',
+    data: {
+      labels: data.by_type.map(t => t.label),
+      datasets: [{
+        label: 'Count',
+        data: data.by_type.map(t => t.count),
+        backgroundColor: data.by_type.map((_, i) => typeColors[i % typeColors.length] + 'cc'),
+        borderColor:     data.by_type.map((_, i) => typeColors[i % typeColors.length]),
+        borderWidth: 1, borderRadius: 5,
+      }],
+    },
+    options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: false } } },
+  });
 
-  const topType = d.by_type[0];
-  document.getElementById('s-top-type').textContent = topType ? topType.label : '—';
+  // Recent list
+  const recentEl = document.getElementById('recent-list');
+  recentEl.innerHTML = data.recent.map(r => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <img src="${r.image_b64}" style="width:36px;height:36px;border-radius:6px;object-fit:contain;border:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.label || r.qr_type}</div>
+        <div style="font-size:.74rem;color:var(--text-muted)">${r.qr_type} · ${r.created_at}</div>
+      </div>
+    </div>`).join('') || '<p style="color:var(--text-muted);font-size:.85rem">No codes yet</p>';
 
-  // Activity bar chart
-  const chartWrap = document.getElementById('activity-chart');
-  if (d.by_day.length === 0) {
-    chartWrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0">No data yet</div>';
-  } else {
-    const max = Math.max(...d.by_day.map(x => x.count), 1);
-    chartWrap.innerHTML = `
-      <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding-bottom:24px;position:relative">
-        ${d.by_day.map(x => {
-          const h = Math.max(4, Math.round((x.count / max) * 100));
-          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
-            <div style="font-size:.7rem;color:var(--text-muted)">${x.count}</div>
-            <div style="width:100%;height:${h}px;background:linear-gradient(to top,var(--accent),var(--accent-2));border-radius:4px 4px 0 0;transition:height .4s"></div>
-            <div style="font-size:.65rem;color:var(--text-muted);white-space:nowrap">${x.day}</div>
-          </div>`;
-        }).join('')}
-      </div>`;
-  }
+  // Styles list
+  const styleEl = document.getElementById('style-list');
+  const total = data.total || 1;
+  styleEl.innerHTML = data.by_style.map(s => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:5px">
+        <span style="font-weight:600;text-transform:capitalize">${s.qr_style}</span>
+        <span style="color:var(--text-muted)">${s.count}</span>
+      </div>
+      <div style="height:6px;border-radius:6px;background:var(--border)">
+        <div style="height:100%;border-radius:6px;background:var(--accent);width:${Math.round(s.count/total*100)}%;transition:width .5s ease"></div>
+      </div>
+    </div>`).join('') || '<p style="color:var(--text-muted);font-size:.85rem">No data yet</p>';
+}
 
-  // Donut chart
-  const COLORS = ['#4ef0c4','#7c6ef7','#f7c26e','#f87171','#60a5fa','#a78bfa','#34d399','#fb923c'];
-  const canvas = document.getElementById('donut-canvas');
-  const ctx = canvas.getContext('2d');
-  const total = d.by_type.reduce((a,b)=>a+b.count,0) || 1;
-  let angle = -Math.PI/2;
-  const cx=70,cy=70,R=60,r=36;
-
-  if (d.by_type.length === 0) {
-    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
-    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=24; ctx.stroke();
-  } else {
-    d.by_type.forEach((item,i) => {
-      const sweep = (item.count/total) * Math.PI*2;
-      ctx.beginPath();
-      ctx.moveTo(cx,cy);
-      ctx.arc(cx,cy,R,angle,angle+sweep);
-      ctx.closePath();
-      ctx.fillStyle = COLORS[i % COLORS.length];
-      ctx.fill();
-      angle += sweep;
-    });
-    // cut hole
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-    ctx.fillStyle = 'var(--bg)'; ctx.fill();
-    // total label
-    ctx.fillStyle='var(--text)'; ctx.font='bold 18px DM Sans'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(total,cx,cy-6);
-    ctx.fillStyle='rgba(232,240,255,0.4)'; ctx.font='11px DM Sans';
-    ctx.fillText('total',cx,cy+10);
-  }
-
-  // Legend
-  const legend = document.getElementById('donut-legend');
-  legend.innerHTML = d.by_type.map((item,i) => `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="width:10px;height:10px;border-radius:3px;background:${COLORS[i%COLORS.length]};flex-shrink:0"></div>
-      <span style="font-size:.82rem;color:var(--text-muted)">${item.label}</span>
-      <span style="font-size:.82rem;color:var(--text);margin-left:auto;font-weight:600">${item.count}</span>
-    </div>`).join('');
-
-  // Recent table
-  const table = document.getElementById('recent-table');
-  if (d.recent.length === 0) {
-    table.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:32px">No QR codes yet</div>';
-  } else {
-    table.innerHTML = `<table class="a-table">
-      <thead><tr><th>Preview</th><th>Label</th><th>Type</th><th>Colors</th><th>Date</th></tr></thead>
-      <tbody>${d.recent.map(r=>`
-        <tr>
-          <td><img src="${r.image_b64}" style="width:40px;height:40px;border-radius:6px;object-fit:contain;border:1px solid var(--border)"></td>
-          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.label || r.qr_type}</td>
-          <td><span class="type-badge">${r.qr_type}</span></td>
-          <td>
-            <div style="display:flex;gap:5px;align-items:center">
-              <div style="width:16px;height:16px;border-radius:4px;background:${r.qr_color};border:1px solid var(--border)"></div>
-              <div style="width:16px;height:16px;border-radius:4px;background:${r.bg_color};border:1px solid var(--border)"></div>
-            </div>
-          </td>
-          <td style="color:var(--text-muted);font-size:.82rem">${r.created_at}</td>
-        </tr>`).join('')}
-      </tbody></table>`;
-  }
-})();
+loadAnalytics();
 </script>
 {% endblock %}

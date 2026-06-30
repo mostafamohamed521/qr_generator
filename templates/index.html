@@ -272,8 +272,30 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             History
           </span>
-          <button class="btn-clear" onclick="clearAll()">Clear all</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="act-btn" onclick="exportCSV()" title="Export as CSV" style="padding:5px 10px;font-size:.75rem">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              CSV
+            </button>
+            <button class="btn-clear" onclick="clearAll()">Clear all</button>
+          </div>
         </div>
+
+        <div class="history-toolbar">
+          <input type="text" class="history-search" id="hist-search" placeholder="Search by label or content…">
+          <select class="history-filter" id="hist-type-filter">
+            <option value="all">All types</option>
+            <option value="url">URL</option>
+            <option value="text">Text</option>
+            <option value="contact">Contact</option>
+            <option value="wifi">WiFi</option>
+            <option value="sms">SMS</option>
+            <option value="email">Email</option>
+            <option value="phone">Phone</option>
+            <option value="location">Location</option>
+          </select>
+        </div>
+
         <div class="history-list" id="history-list">
           <div class="empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -282,6 +304,12 @@
             </svg>
             No QR codes yet
           </div>
+        </div>
+
+        <div class="hist-pagination" id="hist-pagination" style="display:none">
+          <button id="hist-prev" onclick="histGoPage(-1)">&#8592;</button>
+          <span id="hist-page-info"></span>
+          <button id="hist-next" onclick="histGoPage(1)">&#8594;</button>
         </div>
       </div>
 

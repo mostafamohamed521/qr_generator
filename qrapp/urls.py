@@ -18,4 +18,5 @@ urlpatterns = [
     path('api/analytics/',          views.analytics_data,name='analytics_data'),
     path('api/bulk/',               views.bulk_generate, name='bulk_generate'),
     path('api/export-svg/<int:pk>/',views.export_svg,    name='export_svg'),
+    path('api/export-csv/',        views.export_csv,    name='export_csv'),
 ]

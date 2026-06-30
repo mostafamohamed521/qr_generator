@@ -125,7 +125,23 @@ def generate(request):
 
 @require_GET
 def history(request):
-    qs = QRCode.objects.all()[:40]
+    qs = QRCode.objects.all()
+
+    q_str = request.GET.get('q', '').strip()
+    if q_str:
+        from django.db.models import Q
+        qs = qs.filter(Q(label__icontains=q_str) | Q(content__icontains=q_str))
+
+    qr_type = request.GET.get('type', '').strip()
+    if qr_type and qr_type != 'all':
+        qs = qs.filter(qr_type=qr_type)
+
+    page     = max(1, int(request.GET.get('page', 1)))
+    per_page = 12
+    total    = qs.count()
+    pages    = max(1, (total + per_page - 1) // per_page)
+    qs       = qs[(page - 1) * per_page: page * per_page]
+
     items = [{
         'id':         q.id,
         'qr_type':    q.qr_type,
@@ -136,8 +152,9 @@ def history(request):
         'qr_color':   q.qr_color,
         'bg_color':   q.bg_color,
         'content':    q.content,
+        'scan_count': q.scan_count,
     } for q in qs]
-    return JsonResponse({'ok': True, 'items': items})
+    return JsonResponse({'ok': True, 'items': items, 'total': total, 'page': page, 'pages': pages})
 
 
 @require_POST
@@ -197,9 +214,13 @@ def analytics_data(request):
     for r in recent:
         r['created_at'] = r['created_at'].strftime('%d %b %Y')
 
+    from django.db.models import Sum
+    total_scans = QRCode.objects.aggregate(s=Sum('scan_count'))['s'] or 0
+
     return JsonResponse({
         'ok': True,
         'total': total,
+        'total_scans': total_scans,
         'by_type': by_type,
         'by_day': by_day,
         'by_style': by_style,
@@ -254,4 +275,44 @@ def export_svg(request, pk):
     filename = (q.label or f'qr-{pk}').replace(' ', '_')
     response = HttpResponse(svg_data, content_type='image/svg+xml')
     response['Content-Disposition'] = f'attachment; filename="{filename}.svg"'
+    return response
+
+
+# ── Sprint 3: CSV export ───────────────────────────────────────────────────────
+import csv
+from django.http import HttpResponse
+
+@require_GET
+def export_csv(request):
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="qr_history.csv"'
+    response.write('\ufeff')  # BOM for Excel compatibility
+
+    writer = csv.writer(response)
+    writer.writerow(['ID', 'Type', 'Label', 'Content', 'Color', 'Background', 'Size', 'Style', 'Scan Count', 'Created At'])
+
+    qs = QRCode.objects.all()
+
+    q_str = request.GET.get('q', '').strip()
+    if q_str:
+        from django.db.models import Q
+        qs = qs.filter(Q(label__icontains=q_str) | Q(content__icontains=q_str))
+
+    qr_type = request.GET.get('type', '').strip()
+    if qr_type and qr_type != 'all':
+        qs = qs.filter(qr_type=qr_type)
+
+    for q in qs:
+        writer.writerow([
+            q.id,
+            q.get_qr_type_display(),
+            q.label,
+            q.content,
+            q.qr_color,
+            q.bg_color,
+            q.qr_size,
+            q.qr_style,
+            q.scan_count,
+            q.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        ])
     return response
