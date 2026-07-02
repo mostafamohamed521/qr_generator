@@ -1,220 +1,285 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}QR Scanner{% endblock %}
+{% block title %}Scanner{% endblock %}
 {% block nav_scanner %}active{% endblock %}
 
+{% block extra_head %}
+<style>
+.scan-area { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; }
+.scan-tabs { display:flex; gap:8px; margin-bottom:20px; }
+.scan-tab  { flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--field-bg); color:var(--text-muted); font-weight:600; font-size:.85rem; cursor:pointer; text-align:center; }
+.scan-tab.active { background:var(--accent-soft); color:var(--accent); border-color:rgba(109,77,251,.35); }
+.scan-drop { border:2px dashed var(--border); border-radius:var(--radius); padding:36px 20px; text-align:center; cursor:pointer; transition:border-color .18s; }
+.scan-drop:hover { border-color:var(--accent); }
+.scan-drop svg { width:44px; height:44px; margin:0 auto 10px; opacity:.35; display:block; }
+.scan-preview { max-width:100%; border-radius:10px; display:none; margin:14px auto 0; }
+.scan-video-wrap { position:relative; border-radius:12px; overflow:hidden; background:#000; }
+.scan-video { width:100%; display:block; max-height:340px; object-fit:cover; }
+.scan-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+.scan-box { width:200px; height:200px; border:2px solid var(--accent); border-radius:14px; box-shadow:0 0 0 9999px rgba(0,0,0,.35); }
+.scan-box::before,.scan-box::after { content:''; position:absolute; width:22px; height:22px; border-color:var(--accent); border-style:solid; border-width:3px; border-radius:2px; }
+.scan-box::before { top:-2px; left:-2px; border-right:none; border-bottom:none; }
+.scan-box::after  { bottom:-2px; right:-2px; border-left:none; border-top:none; }
+.result-card { border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; margin-top:18px; animation:fade-up .3s ease; }
+.result-type { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:700; background:var(--accent-soft); color:var(--accent); margin-bottom:10px; }
+.result-content { font-size:.88rem; word-break:break-all; margin-bottom:12px; color:var(--text); }
+.result-btns { display:flex; gap:8px; flex-wrap:wrap; }
+.history-entry { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:.84rem; }
+.history-entry .tag { padding:2px 8px; border-radius:20px; font-size:.7rem; font-weight:700; background:var(--hover); color:var(--text-muted); }
+</style>
+{% endblock %}
+
 {% block content %}
-<header class="header" style="margin-bottom:36px">
+<header class="header" style="margin-bottom:30px">
   <h1 style="font-size:clamp(1.6rem,4vw,2.6rem)">QR Scanner</h1>
-  <p>Scan QR codes from your camera or upload an image</p>
+  <p>Scan a code from your camera or upload an image</p>
 </header>
 
-<div class="grid" style="grid-template-columns:1fr 1fr;max-width:900px;margin:0 auto">
-
-  <!-- Camera / Upload -->
-  <div class="card" style="padding:28px">
-    <div class="card-title" style="margin-bottom:18px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Camera / Image
-    </div>
-
-    <!-- Upload zone -->
-    <div class="logo-upload-area" id="scan-drop" onclick="document.getElementById('scan-file').click()" style="cursor:pointer;min-height:120px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <span>Drop image or click to upload</span>
-      <span style="font-size:.75rem;color:var(--text-muted)">PNG, JPG, GIF supported</span>
-      <input type="file" id="scan-file" accept="image/*" style="display:none">
-    </div>
-
-    <div style="text-align:center;margin:14px 0;color:var(--text-muted);font-size:.85rem">— or —</div>
-
-    <!-- Camera button -->
-    <button class="btn-gen" id="cam-btn" onclick="startCamera()" style="margin-bottom:14px">
-      <span class="btn-label">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        Start Camera Scan
-      </span>
-      <div class="spinner"></div>
-    </button>
-
-    <!-- Video element -->
-    <div id="cam-wrap" style="display:none;position:relative;border-radius:12px;overflow:hidden;margin-bottom:10px">
-      <video id="cam-video" autoplay playsinline style="width:100%;border-radius:12px;display:block"></video>
-      <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
-        <div style="width:60%;height:60%;border:2px solid var(--accent);border-radius:12px;box-shadow:0 0 0 9999px rgba(7,10,18,0.5)"></div>
+<div class="grid">
+  <div>
+    <div class="scan-area">
+      <div class="scan-tabs">
+        <button class="scan-tab active" id="tab-camera" onclick="switchTab('camera')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="vertical-align:middle;margin-right:4px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Camera
+        </button>
+        <button class="scan-tab" id="tab-upload" onclick="switchTab('upload')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload Image
+        </button>
       </div>
-    </div>
-    <button id="stop-cam" onclick="stopCamera()" style="display:none;width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:.85rem">
-      ■ Stop Camera
-    </button>
 
-    <!-- Upload preview -->
-    <canvas id="scan-canvas" style="display:none;width:100%;border-radius:12px"></canvas>
+      <!-- Camera panel -->
+      <div id="panel-camera">
+        <div id="camera-start" style="text-align:center">
+          <button class="btn-gen" style="width:auto;padding:11px 28px" onclick="startCamera()">
+            <span class="btn-label">Start Camera</span>
+          </button>
+          <p style="color:var(--text-muted);font-size:.78rem;margin-top:10px">Requires camera permission</p>
+        </div>
+        <div id="camera-wrap" style="display:none">
+          <div class="scan-video-wrap">
+            <video id="scan-video" class="scan-video" autoplay muted playsinline></video>
+            <div class="scan-overlay"><div class="scan-box"></div></div>
+          </div>
+          <button class="btn-clear" style="margin-top:12px;width:100%;padding:9px" onclick="stopCamera()">Stop Camera</button>
+        </div>
+      </div>
+
+      <!-- Upload panel -->
+      <div id="panel-upload" style="display:none">
+        <div class="scan-drop" id="scan-drop" onclick="document.getElementById('scan-file').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/>
+          </svg>
+          <p style="font-weight:600;margin-bottom:4px">Drop an image or click to browse</p>
+          <p style="font-size:.76rem;color:var(--text-muted)">PNG, JPG, GIF, WebP</p>
+          <input type="file" id="scan-file" accept="image/*" style="display:none">
+        </div>
+        <canvas id="scan-canvas" style="display:none;width:100%;border-radius:12px;margin-top:14px"></canvas>
+        <img id="scan-preview" class="scan-preview" alt="Uploaded image">
+      </div>
+
+      <!-- Result -->
+      <div id="scan-result"></div>
+    </div>
   </div>
 
-  <!-- Result panel -->
-  <div class="card" style="padding:28px">
-    <div class="card-title" style="margin-bottom:18px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      Scan Result
-    </div>
-
-    <div id="scan-result-area" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
-      <div class="empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40"><polyline points="4 7 4 4 7 4"/><polyline points="17 4 20 4 20 7"/><polyline points="20 17 20 20 17 20"/><polyline points="7 20 4 20 4 17"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
-        Scan a QR code to see the result
+  <!-- Right: scan history -->
+  <div>
+    <div class="card" style="padding:22px">
+      <div class="card-header" style="margin-bottom:14px">
+        <span class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Scan History
+        </span>
+        <button class="btn-clear" onclick="clearScanHistory()">Clear</button>
+      </div>
+      <div id="scan-history">
+        <div class="empty" style="padding:24px 0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Scans appear here</span>
+        </div>
       </div>
     </div>
-
-    <!-- History of scanned -->
-    <div id="scan-history" style="margin-top:20px"></div>
   </div>
-
 </div>
 
-<!-- jsQR CDN -->
+<!-- jsQR -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-let camStream = null;
-let camInterval = null;
-const scanHistory = [];
+const resultEl  = document.getElementById('scan-result');
+const historyEl = document.getElementById('scan-history');
+let stream = null;
+let rafId  = null;
+const scanHistory = JSON.parse(localStorage.getItem('scan-history') || '[]');
 
-// File upload scan
-document.getElementById('scan-file').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const img = new Image();
-  const url = URL.createObjectURL(file);
-  img.onload = () => {
-    const canvas = document.getElementById('scan-canvas');
-    canvas.style.display = 'block';
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = jsQR(imageData.data, canvas.width, canvas.height);
-    if (code) showResult(code.data);
-    else showError('No QR code detected in this image');
-    URL.revokeObjectURL(url);
-  };
-  img.src = url;
-});
-
-// Drag & drop
-const dropEl = document.getElementById('scan-drop');
-dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.style.borderColor='var(--accent)'; });
-dropEl.addEventListener('dragleave', () => { dropEl.style.borderColor=''; });
-dropEl.addEventListener('drop', e => {
-  e.preventDefault(); dropEl.style.borderColor='';
-  const file = e.dataTransfer.files[0];
-  if (file) { document.getElementById('scan-file').files; processFile(file); }
-});
-
-function processFile(file) {
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  document.getElementById('scan-file').files = dt.files;
-  document.getElementById('scan-file').dispatchEvent(new Event('change'));
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(t) {
+  ['camera','upload'].forEach(id => {
+    document.getElementById(`panel-${id}`).style.display  = id === t ? 'block' : 'none';
+    document.getElementById(`tab-${id}`).classList.toggle('active', id === t);
+  });
+  if (t !== 'camera') stopCamera();
 }
 
-// Camera
+// ── Upload ────────────────────────────────────────────────────────────────────
+document.getElementById('scan-file').addEventListener('change', e => processFile(e.target.files[0]));
+const scanDrop = document.getElementById('scan-drop');
+scanDrop.addEventListener('dragover', e => { e.preventDefault(); scanDrop.style.borderColor = 'var(--accent)'; });
+scanDrop.addEventListener('dragleave', () => { scanDrop.style.borderColor = ''; });
+scanDrop.addEventListener('drop', e => { e.preventDefault(); scanDrop.style.borderColor = ''; processFile(e.dataTransfer.files[0]); });
+
+function processFile(file) {
+  if (!file || !file.type.startsWith('image/')) { toast('Please upload a valid image', 'err'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('scan-canvas');
+      canvas.style.display = 'block';
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = typeof jsQR !== 'undefined' ? jsQR(imageData.data, canvas.width, canvas.height) : null;
+      if (!code) { showError('No QR code detected — try a clearer image.'); return; }
+      showResult(code.data);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Camera ────────────────────────────────────────────────────────────────────
 async function startCamera() {
   try {
-    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    const video = document.getElementById('cam-video');
-    video.srcObject = camStream;
-    document.getElementById('cam-wrap').style.display = 'block';
-    document.getElementById('stop-cam').style.display = 'block';
-    document.getElementById('cam-btn').style.display = 'none';
-
-    // Scan every 400ms
-    camInterval = setInterval(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-      const code = jsQR(imageData.data, canvas.width, canvas.height);
-      if (code) {
-        showResult(code.data);
-        stopCamera();
-      }
-    }, 400);
-  } catch (err) {
-    showError('Camera access denied or not available');
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('scan-video');
+    video.srcObject = stream;
+    document.getElementById('camera-start').style.display = 'none';
+    document.getElementById('camera-wrap').style.display  = 'block';
+    scanLoop(video);
+  } catch {
+    toast('Camera permission denied or not available', 'err');
   }
 }
 
+function scanLoop(video) {
+  if (!stream) return;
+  const canvas = document.createElement('canvas');
+  function tick() {
+    if (!stream || video.readyState < 2) { rafId = requestAnimationFrame(tick); return; }
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    const code = typeof jsQR !== 'undefined' ? jsQR(data.data, canvas.width, canvas.height) : null;
+    if (code) { stopCamera(); showResult(code.data); return; }
+    rafId = requestAnimationFrame(tick);
+  }
+  rafId = requestAnimationFrame(tick);
+}
+
 function stopCamera() {
-  clearInterval(camInterval);
-  if (camStream) { camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
-  document.getElementById('cam-wrap').style.display = 'none';
-  document.getElementById('stop-cam').style.display = 'none';
-  document.getElementById('cam-btn').style.display = 'block';
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  if (rafId)  { cancelAnimationFrame(rafId); rafId = null; }
+  document.getElementById('camera-start').style.display = 'block';
+  document.getElementById('camera-wrap').style.display  = 'none';
+}
+
+// ── Result ────────────────────────────────────────────────────────────────────
+function detectType(data) {
+  if (data.startsWith('http://') || data.startsWith('https://')) return '🔗 URL';
+  if (data.startsWith('WIFI:'))      return '📶 WiFi';
+  if (data.startsWith('BEGIN:VCARD'))return '👤 Contact';
+  if (data.startsWith('mailto:'))    return '✉ Email';
+  if (data.startsWith('sms:') || data.startsWith('SMSTO:')) return '💬 SMS';
+  if (data.startsWith('tel:'))       return '📞 Phone';
+  if (data.startsWith('geo:'))       return '📍 Location';
+  return '📝 Text';
 }
 
 function showResult(data) {
-  const area = document.getElementById('scan-result-area');
-  const isUrl = /^https?:\/\//i.test(data);
-  const isWifi = data.startsWith('WIFI:');
-  const isVcard = data.startsWith('BEGIN:VCARD');
-  const isGeo = data.startsWith('geo:');
-  const isTel = data.startsWith('tel:');
-  const isMail = data.startsWith('mailto:') || data.startsWith('MATMSG:');
+  const type = detectType(data);
+  const isURL = data.startsWith('http://') || data.startsWith('https://');
 
-  let typeLabel = 'Text';
-  let icon = '📄';
-  let action = '';
-
-  if (isUrl) { typeLabel = 'URL'; icon = '🔗'; action = `<a href="${data}" target="_blank" rel="noopener" class="act-btn dl" style="display:inline-flex;margin-top:12px;text-decoration:none">Open URL</a>`; }
-  else if (isWifi) { typeLabel = 'WiFi'; icon = '📶'; }
-  else if (isVcard) { typeLabel = 'Contact'; icon = '👤'; }
-  else if (isGeo) { typeLabel = 'Location'; icon = '📍'; action = `<a href="https://maps.google.com/maps?q=${data.replace('geo:','')}" target="_blank" rel="noopener" class="act-btn dl" style="display:inline-flex;margin-top:12px;text-decoration:none">Open Maps</a>`; }
-  else if (isTel) { typeLabel = 'Phone'; icon = '📞'; action = `<a href="${data}" class="act-btn dl" style="display:inline-flex;margin-top:12px;text-decoration:none">Call</a>`; }
-
-  area.innerHTML = `
-    <div style="font-size:2.5rem">${icon}</div>
-    <div><span class="type-badge">${typeLabel}</span></div>
-    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;width:100%;word-break:break-all;font-size:.85rem;font-family:monospace;max-height:180px;overflow-y:auto">${esc(data)}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-      <button class="act-btn cp" onclick="navigator.clipboard.writeText('${esc(data.replace(/'/g,"\\'"))}');toast('Copied!','ok')">Copy</button>
-      ${action}
+  resultEl.innerHTML = `
+    <div class="result-card">
+      <div class="result-type">${type}</div>
+      <div class="result-content">${esc(data)}</div>
+      <div class="result-btns">
+        <button class="act-btn cp" onclick="navigator.clipboard.writeText('${esc(data.replace(/'/g,"\\'"))}').then(()=>toast('Copied!','ok'))">Copy</button>
+        ${isURL ? `<a href="${esc(data)}" target="_blank" rel="noopener" class="act-btn" style="text-decoration:none">Open URL</a>` : ''}
+        <button class="act-btn" onclick="saveToHistory('${esc(data.replace(/'/g,"\\'"))}')">Save to History</button>
+      </div>
     </div>`;
 
-  scanHistory.unshift({ data, typeLabel, icon, time: new Date().toLocaleTimeString() });
-  renderHistory();
+  addScanEntry(data, type);
   toast('QR code scanned!', 'ok');
 }
 
 function showError(msg) {
-  document.getElementById('scan-result-area').innerHTML = `
-    <div style="color:var(--danger);text-align:center">
-      <div style="font-size:2rem">⚠️</div>
-      <div style="margin-top:8px;font-size:.9rem">${msg}</div>
-    </div>`;
+  resultEl.innerHTML = `<div class="result-card" style="border-color:var(--danger)">
+    <div style="color:var(--danger);font-weight:600;margin-bottom:4px">✕ Scan failed</div>
+    <div style="font-size:.85rem;color:var(--text-muted)">${esc(msg)}</div>
+  </div>`;
+}
+
+// ── Save to history API ───────────────────────────────────────────────────────
+async function saveToHistory(content) {
+  try {
+    const res  = await fetch(`${window.APP_BASE}api/save-scan/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify({ content }),
+    });
+    const data = await res.json();
+    if (data.ok) toast('Saved to QR history ✓', 'ok');
+    else toast('Save failed', 'err');
+  } catch { toast('Save failed', 'err'); }
+}
+
+// ── Local scan history ────────────────────────────────────────────────────────
+function addScanEntry(data, type) {
+  const now = new Date().toLocaleString();
+  scanHistory.unshift({ data, type, at: now });
+  if (scanHistory.length > 50) scanHistory.pop();
+  localStorage.setItem('scan-history', JSON.stringify(scanHistory));
+  renderHistory();
 }
 
 function renderHistory() {
-  const el = document.getElementById('scan-history');
-  if (!scanHistory.length) return;
-  el.innerHTML = `<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:8px">Recent Scans</div>` +
-    scanHistory.slice(0,5).map(s => `
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:1.2rem">${s.icon}</span>
-        <div style="flex:1;overflow:hidden">
-          <div style="font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.data)}</div>
-          <div style="font-size:.7rem;color:var(--text-muted)">${s.typeLabel} · ${s.time}</div>
-        </div>
-      </div>`).join('');
+  if (!scanHistory.length) {
+    historyEl.innerHTML = `<div class="empty" style="padding:24px 0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Scans appear here</span></div>`;
+    return;
+  }
+  historyEl.innerHTML = scanHistory.slice(0, 20).map(e => `
+    <div class="history-entry">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.data)}</div>
+        <div style="font-size:.72rem;color:var(--text-muted)">${esc(e.at)}</div>
+      </div>
+      <span class="tag">${esc(e.type)}</span>
+    </div>`).join('');
 }
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function clearScanHistory() {
+  scanHistory.length = 0;
+  localStorage.removeItem('scan-history');
+  renderHistory();
 }
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function csrfToken() { return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||''; }
+
+renderHistory();
 </script>
 {% endblock %}

@@ -7,6 +7,7 @@ urlpatterns = [
     # Pages
     path('',                        views.index,         name='index'),
     path('analytics/',              views.analytics,     name='analytics'),
+    path('dynamic/',               views.dynamic,       name='dynamic'),
     path('bulk/',                   views.bulk,          name='bulk'),
     path('scanner/',                views.scanner,       name='scanner'),
 
@@ -19,4 +20,11 @@ urlpatterns = [
     path('api/bulk/',               views.bulk_generate, name='bulk_generate'),
     path('api/export-svg/<int:pk>/',views.export_svg,    name='export_svg'),
     path('api/export-csv/',        views.export_csv,    name='export_csv'),
+    # Dynamic QR (Sprint 4)
+    path('api/dynamic/',           views.dynamic_list,  name='dynamic_list'),
+    path('api/dynamic/create/',    views.dynamic_create,name='dynamic_create'),
+    path('api/dynamic/<int:pk>/update/', views.dynamic_update, name='dynamic_update'),
+    path('api/dynamic/<int:pk>/delete/', views.dynamic_delete, name='dynamic_delete'),
+    path('api/dynamic/<int:pk>/stats/',  views.dynamic_stats,  name='dynamic_stats'),
+    path('api/save-scan/',             views.save_scan,      name='save_scan'),
 ]

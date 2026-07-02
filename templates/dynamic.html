@@ -1,0 +1,347 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dynamic QR{% endblock %}
+{% block nav_dynamic %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.dyn-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:16px; margin-top:18px; }
+.dyn-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px; animation:fade-up .35s ease both; }
+.dyn-card.inactive { opacity:.55; }
+.dyn-thumb { width:80px; height:80px; object-fit:contain; border:1px solid var(--border); border-radius:10px; background:var(--field-bg); flex-shrink:0; }
+.dyn-top { display:flex; gap:12px; align-items:flex-start; }
+.dyn-label { font-weight:700; font-size:.9rem; margin-bottom:2px; word-break:break-word; }
+.dyn-url { font-size:.75rem; color:var(--text-muted); word-break:break-all; max-height:2.6em; overflow:hidden; }
+.dyn-meta { display:flex; gap:8px; flex-wrap:wrap; font-size:.74rem; color:var(--text-muted); }
+.dyn-meta strong { color:var(--accent); }
+.dyn-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:.7rem; font-weight:700; }
+.badge-active { background:rgba(20,216,164,.15); color:var(--accent-2); }
+.badge-inactive { background:rgba(224,57,92,.12); color:var(--danger); }
+.dyn-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.dyn-btn { flex:1; padding:7px 10px; border-radius:9px; border:1px solid var(--border); background:var(--field-bg); color:var(--text); font-size:.78rem; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; transition:all .15s; }
+.dyn-btn:hover { border-color:var(--accent); color:var(--accent); }
+.dyn-btn.danger:hover { border-color:var(--danger); color:var(--danger); }
+.dyn-btn.primary { background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; border:none; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:none; align-items:center; justify-content:center; }
+.modal-backdrop.open { display:flex; }
+.modal { background:var(--surface-solid); border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; width:calc(100% - 40px); max-width:480px; box-shadow:var(--shadow); animation:fade-up .25s ease; }
+.modal h2 { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:16px; }
+.modal-close { position:absolute; top:16px; right:16px; }
+.modal-field { margin-bottom:14px; }
+.modal-field label { display:block; font-size:.82rem; font-weight:600; margin-bottom:6px; }
+.scan-bars { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+.scan-bar-row { display:flex; align-items:center; gap:8px; font-size:.78rem; }
+.scan-bar-label { width:54px; color:var(--text-muted); }
+.scan-bar-track { flex:1; height:6px; background:var(--border); border-radius:6px; overflow:hidden; }
+.scan-bar-fill { height:100%; background:var(--accent); border-radius:6px; transition:width .6s ease; }
+.scan-bar-count { width:28px; text-align:right; font-weight:600; color:var(--accent); }
+.empty-state { text-align:center; padding:48px 20px; color:var(--text-muted); }
+.empty-state svg { width:48px; height:48px; margin:0 auto 14px; opacity:.35; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Dynamic QR Codes</h1>
+  <p style="color:var(--text-muted)">Change the destination anytime — the QR code never changes.</p>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+  <button class="btn-gen" style="width:auto;padding:10px 22px" onclick="openCreateModal()">
+    <span class="btn-label">+ New Dynamic QR</span>
+  </button>
+</div>
+
+<div class="dyn-grid" id="dyn-grid"></div>
+
+<!-- Create modal -->
+<div class="modal-backdrop" id="create-modal">
+  <div class="modal" style="position:relative">
+    <button class="act-btn modal-close" onclick="closeModal('create-modal')" style="padding:4px 8px">✕</button>
+    <h2>New Dynamic QR</h2>
+    <div class="modal-field">
+      <label>Destination URL *</label>
+      <input type="url" id="new-url" class="fi" placeholder="https://your-link.com" required>
+      <div id="new-url-err" style="color:var(--danger);font-size:.76rem;margin-top:4px;display:none"></div>
+    </div>
+    <div class="modal-field">
+      <label>Label (optional)</label>
+      <input type="text" id="new-label" class="fi" placeholder="e.g. Campaign Nov 2026">
+    </div>
+    <div class="color-row" style="margin-bottom:14px">
+      <div class="color-field"><label>QR Color</label><input type="color" id="new-color" value="#000000"></div>
+      <div class="color-field"><label>Background</label><input type="color" id="new-bg" value="#ffffff"></div>
+      <div class="color-field">
+        <label>Style</label>
+        <select id="new-style" class="history-filter">
+          <option value="square">Square</option>
+          <option value="rounded">Rounded</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-gen" style="width:100%" id="create-btn" onclick="createDynamic()">
+      <span class="btn-label">Generate Dynamic QR</span>
+      <div class="spinner" style="display:none"></div>
+    </button>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal" style="position:relative">
+    <button class="act-btn modal-close" onclick="closeModal('edit-modal')" style="padding:4px 8px">✕</button>
+    <h2>Edit Dynamic QR</h2>
+    <input type="hidden" id="edit-id">
+    <div class="modal-field">
+      <label>New destination URL</label>
+      <input type="url" id="edit-url" class="fi" placeholder="https://new-destination.com">
+    </div>
+    <div class="modal-field">
+      <label>Label</label>
+      <input type="text" id="edit-label" class="fi">
+    </div>
+    <div class="modal-field" style="display:flex;align-items:center;gap:10px;margin-bottom:0">
+      <label class="transparent-toggle" style="margin:0">
+        <input type="checkbox" id="edit-active">
+        <span>Active</span>
+      </label>
+      <span style="font-size:.78rem;color:var(--text-muted)">Inactive links return 404</span>
+    </div>
+    <button class="btn-gen" style="width:100%;margin-top:16px" id="edit-btn" onclick="saveDynamic()">
+      <span class="btn-label">Save changes</span>
+    </button>
+  </div>
+</div>
+
+<!-- Stats modal -->
+<div class="modal-backdrop" id="stats-modal">
+  <div class="modal" style="position:relative;max-width:520px">
+    <button class="act-btn modal-close" onclick="closeModal('stats-modal')" style="padding:4px 8px">✕</button>
+    <h2 id="stats-title">Scan Analytics</h2>
+    <div id="stats-body"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const DAPI = `${window.APP_BASE}api/dynamic/`;
+
+// ── Load list ────────────────────────────────────────────────────────────────
+async function loadDynamic() {
+  const res  = await fetch(DAPI);
+  const data = await res.json();
+  const grid = document.getElementById('dyn-grid');
+  if (!data.ok || data.links.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+      <p>No dynamic links yet — create one above.</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = data.links.map(l => `
+    <div class="dyn-card ${l.is_active ? '' : 'inactive'}" id="dcard-${l.id}">
+      <div class="dyn-top">
+        <img class="dyn-thumb" src="${l.image || ''}" alt="">
+        <div style="flex:1;min-width:0">
+          <div class="dyn-label">${esc(l.label)}</div>
+          <div class="dyn-url">${esc(l.target_url)}</div>
+          <div class="dyn-meta" style="margin-top:6px">
+            <span>Code: <strong>${esc(l.short_code)}</strong></span>
+            <span><strong>${l.scan_count}</strong> scans</span>
+            <span>${esc(l.created_at)}</span>
+          </div>
+          <span class="dyn-badge ${l.is_active ? 'badge-active' : 'badge-inactive'}" style="margin-top:4px">
+            ${l.is_active ? '● Active' : '○ Inactive'}
+          </span>
+        </div>
+      </div>
+      <div class="dyn-actions">
+        <button class="dyn-btn primary" onclick="dlDynQR(${l.id})" title="Download QR">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          PNG
+        </button>
+        <button class="dyn-btn" onclick="copyRedirect('${esc(l.short_code)}')" title="Copy redirect URL">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy URL
+        </button>
+        <button class="dyn-btn" onclick="openStats(${l.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Stats
+        </button>
+        <button class="dyn-btn" onclick="openEdit(${l.id},'${esc(l.target_url)}','${esc(l.label)}',${l.is_active})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </button>
+        <button class="dyn-btn danger" onclick="deleteDynamic(${l.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          Delete
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+// ── Create ───────────────────────────────────────────────────────────────────
+function openCreateModal() {
+  document.getElementById('new-url').value = '';
+  document.getElementById('new-label').value = '';
+  document.getElementById('new-url-err').style.display = 'none';
+  document.getElementById('create-modal').classList.add('open');
+}
+
+async function createDynamic() {
+  const url   = document.getElementById('new-url').value.trim();
+  const label = document.getElementById('new-label').value.trim();
+  const color = document.getElementById('new-color').value;
+  const bg    = document.getElementById('new-bg').value;
+  const style = document.getElementById('new-style').value;
+  const errEl = document.getElementById('new-url-err');
+  const btn   = document.getElementById('create-btn');
+
+  if (!url || !url.startsWith('http')) {
+    errEl.textContent = 'Please enter a valid URL starting with https://';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  btn.disabled = true;
+
+  const res  = await fetch(`${DAPI}create/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+    body: JSON.stringify({ target_url: url, label, qr_color: color, bg_color: bg, qr_style: style }),
+  });
+  const data = await res.json();
+  btn.disabled = false;
+
+  if (data.ok) {
+    closeModal('create-modal');
+    toast('Dynamic QR created!', 'ok');
+    loadDynamic();
+  } else {
+    errEl.textContent = data.error;
+    errEl.style.display = 'block';
+  }
+}
+
+// ── Edit ─────────────────────────────────────────────────────────────────────
+function openEdit(id, targetUrl, label, isActive) {
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-url').value = targetUrl;
+  document.getElementById('edit-label').value = label;
+  document.getElementById('edit-active').checked = isActive;
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+async function saveDynamic() {
+  const id       = document.getElementById('edit-id').value;
+  const url      = document.getElementById('edit-url').value.trim();
+  const label    = document.getElementById('edit-label').value.trim();
+  const isActive = document.getElementById('edit-active').checked;
+
+  const res  = await fetch(`${DAPI}${id}/update/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+    body: JSON.stringify({ target_url: url, label, is_active: isActive }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    closeModal('edit-modal');
+    toast('Saved!', 'ok');
+    loadDynamic();
+  } else {
+    toast(data.error || 'Save failed', 'err');
+  }
+}
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+async function deleteDynamic(id) {
+  if (!confirm('Delete this dynamic QR link and all its scan data?')) return;
+  const res  = await fetch(`${DAPI}${id}/delete/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrfToken() },
+  });
+  const data = await res.json();
+  if (data.ok) {
+    document.getElementById(`dcard-${id}`)?.remove();
+    toast('Deleted', 'ok');
+  } else {
+    toast('Delete failed', 'err');
+  }
+}
+
+// ── Stats modal ───────────────────────────────────────────────────────────────
+async function openStats(id) {
+  document.getElementById('stats-modal').classList.add('open');
+  document.getElementById('stats-body').innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
+
+  const res  = await fetch(`${DAPI}${id}/stats/`);
+  const data = await res.json();
+
+  document.getElementById('stats-title').textContent = data.label || 'Scan Analytics';
+
+  const maxCount = Math.max(...data.by_day.map(d => d.count), 1);
+  const bars = data.by_day.length
+    ? data.by_day.map(d => `
+      <div class="scan-bar-row">
+        <span class="scan-bar-label">${d.day}</span>
+        <div class="scan-bar-track"><div class="scan-bar-fill" style="width:${Math.round(d.count/maxCount*100)}%"></div></div>
+        <span class="scan-bar-count">${d.count}</span>
+      </div>`).join('')
+    : '<p style="color:var(--text-muted);font-size:.85rem;margin-top:8px">No scans in the last 14 days.</p>';
+
+  document.getElementById('stats-body').innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:16px">
+      <div class="stat-card" style="flex:1;padding:14px 16px">
+        <div class="stat-val" style="font-size:1.6rem">${data.total}</div>
+        <div class="stat-lbl">Total scans</div>
+      </div>
+      <div class="stat-card" style="flex:1;padding:14px 16px">
+        <div class="stat-val" style="font-size:.8rem;font-weight:600;word-break:break-all">${data.target_url}</div>
+        <div class="stat-lbl">Destination</div>
+      </div>
+    </div>
+    <div class="card-header" style="margin-bottom:10px">
+      <span class="card-title" style="font-size:.85rem">Last 14 days</span>
+    </div>
+    <div class="scan-bars">${bars}</div>`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function copyRedirect(short_code) {
+  const url = `${window.location.origin}/r/${short_code}/`;
+  navigator.clipboard.writeText(url)
+    .then(() => toast('Redirect URL copied!', 'ok'))
+    .catch(() => toast('Copy failed', 'err'));
+}
+
+function dlDynQR(id) {
+  const card = document.getElementById(`dcard-${id}`);
+  const img  = card?.querySelector('.dyn-thumb');
+  if (!img) return;
+  const a  = document.createElement('a');
+  a.href   = img.src;
+  a.download = `qr-dynamic-${id}.png`;
+  a.click();
+}
+
+// close modals on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  bd.addEventListener('click', e => { if (e.target === bd) closeModal(bd.id); });
+});
+
+// Enter key in create modal
+document.getElementById('new-url')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') createDynamic();
+});
+
+loadDynamic();
+</script>
+{% endblock %}

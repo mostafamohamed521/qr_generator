@@ -3,13 +3,31 @@
 {% block title %}Bulk Generator{% endblock %}
 {% block nav_bulk %}active{% endblock %}
 
+{% block extra_head %}
+<style>
+.bulk-progress-wrap { margin:14px 0 4px; display:none; flex-direction:column; gap:5px; }
+.bulk-progress-bar { height:8px; border-radius:8px; background:var(--border); overflow:hidden; }
+.bulk-progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); border-radius:8px; transition:width .2s; }
+.bulk-progress-label { font-size:.76rem; color:var(--text-muted); text-align:right; }
+.bulk-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); animation:fade-up .25s ease both; }
+.bulk-item img { width:52px; height:52px; border-radius:8px; border:1px solid var(--border); object-fit:contain; background:var(--field-bg); flex-shrink:0; }
+.bulk-item-meta { flex:1; min-width:0; }
+.bulk-item-label { font-weight:600; font-size:.83rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bulk-item-sub { font-size:.74rem; color:var(--text-muted); margin-top:2px; }
+.bulk-item-btns { display:flex; gap:5px; }
+.bulk-item-btn { padding:5px 9px; border-radius:8px; border:1px solid var(--border); background:var(--field-bg); color:var(--text); font-size:.72rem; font-weight:600; cursor:pointer; }
+.bulk-item-btn:hover { border-color:var(--accent); color:var(--accent); }
+.bulk-summary { font-size:.82rem; color:var(--text-muted); padding:8px 0; }
+</style>
+{% endblock %}
+
 {% block content %}
 <header class="header" style="margin-bottom:36px">
   <h1 style="font-size:clamp(1.6rem,4vw,2.6rem)">Bulk Generator</h1>
-  <p>Generate up to 50 QR codes at once — paste a list or upload a CSV</p>
+  <p>Generate up to 200 QR codes at once — paste, upload CSV, or import Excel</p>
 </header>
 
-<div class="grid" style="grid-template-columns:1fr 360px">
+<div class="grid" style="grid-template-columns:1fr 380px">
 
   <!-- Left: Input -->
   <div class="card" style="padding:28px">
@@ -19,18 +37,21 @@
     </div>
 
     <div style="margin-bottom:14px">
-      <div style="display:flex;gap:10px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
         <button class="style-btn active" id="mode-text" onclick="setMode('text')">Text / URLs</button>
-        <button class="style-btn" id="mode-csv" onclick="setMode('csv')">CSV (label, content)</button>
+        <button class="style-btn" id="mode-csv"  onclick="setMode('csv')">CSV (label,content)</button>
       </div>
-      <textarea id="bulk-input" class="ft" style="min-height:260px" placeholder="https://example.com&#10;https://google.com&#10;My custom text here&#10;..."></textarea>
+      <textarea id="bulk-input" class="ft" style="min-height:220px" placeholder="https://example.com&#10;https://google.com&#10;My custom text here&#10;..."></textarea>
     </div>
 
-    <!-- CSV upload -->
-    <div class="logo-upload-area" style="margin-bottom:18px" id="csv-drop">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <span>Drop CSV file or <label for="csv-file" style="color:var(--accent);cursor:pointer;text-decoration:underline">browse</label></span>
-      <input type="file" id="csv-file" accept=".csv,.txt" style="display:none">
+    <!-- File drop zone: CSV or Excel -->
+    <div class="logo-upload-area" style="margin-bottom:18px" id="file-drop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <span>Drop CSV / Excel or <label for="bulk-file" style="color:var(--accent);cursor:pointer;text-decoration:underline">browse</label></span>
+      <span id="file-name" style="font-size:.76rem;color:var(--accent);display:none"></span>
+      <input type="file" id="bulk-file" accept=".csv,.txt,.xlsx,.xls" style="display:none">
     </div>
 
     <!-- Shared settings -->
@@ -39,10 +60,11 @@
       <div class="color-row">
         <div class="color-field"><label>QR Color</label><input type="color" id="b-qr-color" value="#000000"></div>
         <div class="color-field"><label>Background</label><input type="color" id="b-bg-color" value="#ffffff"></div>
+        <label class="transparent-toggle"><input type="checkbox" id="b-transparent"><span>Transparent</span></label>
       </div>
-      <div class="range-row">
+      <div class="range-row" style="margin-top:10px">
         <label>Size</label>
-        <input type="range" id="b-size" min="150" max="600" value="300" step="50">
+        <input type="range" id="b-size" min="150" max="600" value="300" step="50" oninput="document.getElementById('b-size-val').textContent=this.value+'px'">
         <span class="range-val" id="b-size-val">300px</span>
       </div>
       <div class="style-btns" style="margin-top:10px">
@@ -58,21 +80,32 @@
       </span>
       <div class="spinner"></div>
     </button>
+
+    <div class="bulk-progress-wrap" id="progress-wrap">
+      <div class="bulk-progress-bar"><div class="bulk-progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="bulk-progress-label" id="progress-label">0 / 0</div>
+    </div>
   </div>
 
   <!-- Right: Results -->
   <div>
-    <div class="card" style="padding:24px;min-height:300px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="card" style="padding:22px;min-height:300px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div class="card-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 0h-3"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
           Results
         </div>
-        <button class="btn-clear" id="dl-all-btn" onclick="dlAll()" style="display:none;background:var(--accent);color:#070a12;font-weight:600;padding:6px 14px;border-radius:8px">&#8595; Download All</button>
+        <div style="display:flex;gap:6px">
+          <button id="dl-all-btn" onclick="dlAll('png')" style="display:none" class="act-btn" style="padding:5px 10px;font-size:.76rem">&#8595; ZIP (PNG)</button>
+          <button id="dl-jpg-btn" onclick="dlAll('jpg')" style="display:none" class="act-btn" style="padding:5px 10px;font-size:.76rem">&#8595; ZIP (JPG)</button>
+        </div>
       </div>
+      <div id="bulk-summary" class="bulk-summary"></div>
       <div id="bulk-results">
         <div class="empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+            <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/>
+          </svg>
           Results will appear here
         </div>
       </div>
@@ -83,131 +116,230 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-let bulkStyle = 'square';
-let bulkMode  = 'text';
+let bulkStyle   = 'square';
+let bulkMode    = 'text';
 let bulkResults = [];
 
+// ── Mode toggle ──────────────────────────────────────────────────────────────
 function setMode(m) {
   bulkMode = m;
-  document.getElementById('mode-text').classList.toggle('active', m==='text');
-  document.getElementById('mode-csv').classList.toggle('active',  m==='csv');
+  ['text','csv'].forEach(id => {
+    const active = id === m;
+    document.getElementById('mode-' + id).classList.toggle('active', active);
+  });
   document.getElementById('bulk-input').placeholder =
-    m === 'csv' ? 'My Website, https://example.com\nOffice WiFi, WIFI:T:WPA;S:MyNet;P:pass;;\n...'
-                : 'https://example.com\nhttps://google.com\nAny text here...';
+    m === 'csv' ? 'My Website,https://example.com\nOffice WiFi,WIFI:T:WPA;S:OfficeNet;P:pass123;;\n...'
+                : 'https://example.com\nhttps://google.com\nMy custom text here\n...';
 }
 
+// ── Style buttons ────────────────────────────────────────────────────────────
 document.querySelectorAll('[data-bstyle]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-bstyle]').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('[data-bstyle]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     bulkStyle = btn.dataset.bstyle;
   });
 });
 
-const bSize = document.getElementById('b-size');
-bSize.addEventListener('input', () => {
-  document.getElementById('b-size-val').textContent = bSize.value + 'px';
-});
+// ── File import: CSV or Excel ────────────────────────────────────────────────
+const fileInput = document.getElementById('bulk-file');
+const fileDrop  = document.getElementById('file-drop');
+const fileName  = document.getElementById('file-name');
 
-// CSV file
-document.getElementById('csv-file').addEventListener('change', e => {
-  const file = e.target.files[0];
+function handleFile(file) {
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    document.getElementById('bulk-input').value = ev.target.result;
-    bulkMode = 'csv';
-    document.getElementById('mode-text').classList.remove('active');
-    document.getElementById('mode-csv').classList.add('active');
-  };
-  reader.readAsText(file);
+  fileName.style.display = 'block';
+  fileName.textContent   = file.name;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb    = XLSX.read(e.target.result, { type: 'binary' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows  = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      // skip header row if first row looks like headers
+      const start = (rows[0] && typeof rows[0][0] === 'string' && rows[0][0].toLowerCase().includes('label')) ? 1 : 0;
+      const lines = rows.slice(start).filter(r => r[0] || r[1]).map(r => {
+        const label   = String(r[0] || '').trim();
+        const content = String(r[1] || r[0] || '').trim();
+        return label && content && label !== content ? `${label},${content}` : content;
+      });
+      document.getElementById('bulk-input').value = lines.join('\n');
+      setMode('csv');
+    };
+    reader.readAsBinaryString(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('bulk-input').value = e.target.result.trim();
+      if (e.target.result.includes(',')) setMode('csv');
+    };
+    reader.readAsText(file);
+  }
+}
+
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.style.borderColor = 'var(--accent)'; });
+fileDrop.addEventListener('dragleave', () => { fileDrop.style.borderColor = ''; });
+fileDrop.addEventListener('drop', e => {
+  e.preventDefault(); fileDrop.style.borderColor = '';
+  handleFile(e.dataTransfer.files[0]);
 });
 
-async function runBulk() {
-  const raw = document.getElementById('bulk-input').value.trim();
-  if (!raw) { toast('Enter some content first', 'err'); return; }
-
-  const lines = raw.split('\n').filter(l=>l.trim());
-  const items = lines.map(line => {
+// ── Parse input ──────────────────────────────────────────────────────────────
+function parseItems() {
+  const lines = document.getElementById('bulk-input').value.trim().split('\n').filter(Boolean);
+  return lines.map(line => {
     if (bulkMode === 'csv') {
-      const comma = line.indexOf(',');
-      if (comma > -1) return { label: line.slice(0,comma).trim(), content: line.slice(comma+1).trim() };
+      const idx     = line.indexOf(',');
+      const label   = idx >= 0 ? line.slice(0, idx).trim() : '';
+      const content = idx >= 0 ? line.slice(idx + 1).trim() : line.trim();
+      return { label, content };
     }
     return { label: '', content: line.trim() };
-  }).filter(x=>x.content);
+  }).filter(i => i.content);
+}
 
-  if (items.length === 0) { toast('No valid entries found', 'err'); return; }
-  if (items.length > 50) { toast('Maximum 50 items at once', 'err'); return; }
+// ── Generate ─────────────────────────────────────────────────────────────────
+async function runBulk() {
+  const items = parseItems();
+  if (!items.length) { toast('Enter at least one item', 'err'); return; }
+  if (items.length > 200) { toast('Max 200 items', 'err'); return; }
 
-  const btn = document.getElementById('bulk-btn');
+  const btn  = document.getElementById('bulk-btn');
+  const wrap = document.getElementById('progress-wrap');
+  const fill = document.getElementById('progress-fill');
+  const lbl  = document.getElementById('progress-label');
+
   btn.classList.add('loading'); btn.disabled = true;
+  wrap.style.display = 'flex'; fill.style.width = '0%';
+  document.getElementById('bulk-results').innerHTML = '';
+  document.getElementById('bulk-summary').textContent = '';
+  document.getElementById('dl-all-btn').style.display = 'none';
+  document.getElementById('dl-jpg-btn').style.display = 'none';
 
-  const payload = {
-    items,
-    qr_color: document.getElementById('b-qr-color').value,
-    bg_color:  document.getElementById('b-bg-color').value,
-    style:     bulkStyle,
-    size:      parseInt(bSize.value),
-  };
+  const color  = document.getElementById('b-qr-color').value;
+  const bgRaw  = document.getElementById('b-transparent').checked ? 'transparent' : document.getElementById('b-bg-color').value;
+  const size   = document.getElementById('b-size').value;
+  const CHUNK  = 10;
+  bulkResults  = [];
 
-  try {
-    const res = await fetch(`${window.APP_BASE}api/bulk/`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      bulkResults = data.results;
-      renderResults(data.results);
-      toast(`Generated ${data.results.length} QR codes!`, 'ok');
-    } else {
-      toast(data.error || 'Failed', 'err');
-    }
-  } catch {
-    toast('Connection error', 'err');
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const chunk = items.slice(i, i + CHUNK);
+    try {
+      const res  = await fetch(`${window.APP_BASE}api/bulk/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+        body: JSON.stringify({ items: chunk, qr_color: color, bg_color: bgRaw, style: bulkStyle, size }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        bulkResults.push(...data.results);
+        appendResults(data.results);
+      }
+    } catch { toast('Network error on chunk ' + (i / CHUNK + 1), 'err'); }
+
+    const done = Math.min(i + CHUNK, items.length);
+    fill.style.width = `${Math.round(done / items.length * 100)}%`;
+    lbl.textContent  = `${done} / ${items.length}`;
   }
 
   btn.classList.remove('loading'); btn.disabled = false;
-}
 
-function renderResults(results) {
-  const el = document.getElementById('bulk-results');
-  if (!results.length) { el.innerHTML = '<div class="empty">No results</div>'; return; }
-
-  document.getElementById('dl-all-btn').style.display = '';
-  el.innerHTML = results.map((r,i) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-      <img src="${r.image}" style="width:44px;height:44px;border-radius:6px;object-fit:contain;border:1px solid var(--border)">
-      <div style="flex:1;overflow:hidden">
-        <div style="font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.label)}</div>
-        ${r.error ? `<div style="font-size:.72rem;color:var(--danger)">${esc(r.error)}</div>` : ''}
-      </div>
-      <button class="act-btn dl" style="padding:6px 10px;font-size:.75rem" onclick="dlOne(${i})">&#8595;</button>
-    </div>`).join('');
-}
-
-function dlOne(i) {
-  const r = bulkResults[i];
-  const a = document.createElement('a');
-  a.href = r.image; a.download = (r.label || `qr-${i+1}`) + '.png'; a.click();
-}
-
-async function dlAll() {
-  for (let i=0; i<bulkResults.length; i++) {
-    await new Promise(res => setTimeout(res, 120));
-    dlOne(i);
+  if (bulkResults.length) {
+    document.getElementById('bulk-summary').textContent = `✔ ${bulkResults.length} code${bulkResults.length > 1 ? 's' : ''} generated`;
+    document.getElementById('dl-all-btn').style.display = 'inline-flex';
+    document.getElementById('dl-jpg-btn').style.display = 'inline-flex';
+    toast(`Generated ${bulkResults.length} QR codes!`, 'ok');
   }
-  toast('Downloading all QR codes…', 'info');
 }
 
-function csrfToken() {
-  return document.cookie.match(/csrftoken=([^;]+)/)?.[1] ?? '';
+function appendResults(results) {
+  const container = document.getElementById('bulk-results');
+  results.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = 'bulk-item';
+    div.style.animationDelay = `${i * 0.04}s`;
+    div.innerHTML = r.error
+      ? `<div class="bulk-item-meta"><div class="bulk-item-label" style="color:var(--danger)">✕ ${esc(r.label)}</div><div class="bulk-item-sub">${esc(r.error)}</div></div>`
+      : `<img src="${r.image}" loading="lazy">
+         <div class="bulk-item-meta">
+           <div class="bulk-item-label">${esc(r.label || r.content?.slice(0,40) || 'QR ' + (bulkResults.indexOf(r)+1))}</div>
+           <div class="bulk-item-sub">${esc((r.content||'').slice(0,60))}</div>
+         </div>
+         <div class="bulk-item-btns">
+           <button class="bulk-item-btn" onclick="dlOne('${r.image}','${esc(r.label||'qr')}','png')">PNG</button>
+           <button class="bulk-item-btn" onclick="dlOne('${r.image}','${esc(r.label||'qr')}','jpg')">JPG</button>
+         </div>`;
+    container.appendChild(div);
+  });
 }
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ── Downloads ────────────────────────────────────────────────────────────────
+function dlOne(src, label, fmt) {
+  if (fmt === 'jpg') {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(img, 0, 0);
+      const a = document.createElement('a');
+      a.href = c.toDataURL('image/jpeg', 0.95);
+      a.download = (label || 'qr') + '.jpg'; a.click();
+    }; img.src = src;
+  } else {
+    const a = document.createElement('a');
+    a.href = src; a.download = (label || 'qr') + '.png'; a.click();
+  }
 }
+
+async function dlAll(fmt) {
+  if (!bulkResults.length) return;
+  const btn = fmt === 'jpg' ? document.getElementById('dl-jpg-btn') : document.getElementById('dl-all-btn');
+  btn.textContent = '⏳ Packing…';
+
+  const zip = new JSZip();
+  const folder = zip.folder('qrcodes');
+  let idx = 1;
+
+  for (const r of bulkResults) {
+    if (!r.image) continue;
+    const safe = (r.label || `qr-${idx}`).replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40);
+    if (fmt === 'jpg') {
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = img.width; c.height = img.height;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,c.width,c.height);
+          ctx.drawImage(img, 0, 0);
+          const b64 = c.toDataURL('image/jpeg', 0.95).split(',')[1];
+          folder.file(`${safe}.jpg`, b64, { base64: true });
+          resolve();
+        }; img.src = r.image;
+      });
+    } else {
+      const b64 = r.image.split(',')[1];
+      folder.file(`${safe}.png`, b64, { base64: true });
+    }
+    idx++;
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `qrcodes-${fmt}.zip`; a.click();
+  btn.textContent = fmt === 'jpg' ? '↓ ZIP (JPG)' : '↓ ZIP (PNG)';
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function csrfToken() { return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||''; }
 </script>
 {% endblock %}

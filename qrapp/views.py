@@ -80,6 +80,10 @@ def analytics(request):
     return render(request, 'analytics.html')
 
 
+def dynamic(request):
+    return render(request, 'dynamic.html')
+
+
 def bulk(request):
     return render(request, 'bulk.html')
 
@@ -236,8 +240,8 @@ def bulk_generate(request):
         return JsonResponse({'ok': False, 'error': 'Invalid JSON'})
 
     items = payload.get('items', [])
-    if not items or len(items) > 50:
-        return JsonResponse({'ok': False, 'error': 'Send 1–50 items'})
+    if not items or len(items) > 200:
+        return JsonResponse({'ok': False, 'error': 'Send 1–200 items'})
 
     color  = payload.get('qr_color', '#000000')
     bg     = payload.get('bg_color', '#ffffff')
@@ -316,3 +320,195 @@ def export_csv(request):
             q.created_at.strftime('%Y-%m-%d %H:%M:%S'),
         ])
     return response
+
+
+# ── Sprint 4: Dynamic QR ──────────────────────────────────────────────────────
+import hashlib
+from django.views.decorators.http import require_http_methods
+from .models import DynamicLink, ScanEvent
+from .qr_utils import generate_qr_image
+
+
+def dynamic_redirect(request, short_code):
+    """Public redirect endpoint — scanned by a phone camera."""
+    try:
+        link = DynamicLink.objects.get(short_code=short_code, is_active=True)
+    except DynamicLink.DoesNotExist:
+        from django.http import Http404
+        raise Http404
+
+    # record scan
+    ip  = request.META.get('REMOTE_ADDR', '')
+    ScanEvent.objects.create(
+        link=link,
+        ip_hash=hashlib.sha256(ip.encode()).hexdigest()[:16],
+        user_agent=request.META.get('HTTP_USER_AGENT', '')[:300],
+        referer=request.META.get('HTTP_REFERER', '')[:500],
+    )
+    from django.db.models import F
+    DynamicLink.objects.filter(pk=link.pk).update(scan_count=F('scan_count') + 1)
+
+    from django.shortcuts import redirect as dj_redirect
+    return dj_redirect(link.target_url, permanent=False)
+
+
+@require_GET
+def dynamic_list(request):
+    """Return all dynamic links as JSON for the dashboard."""
+    links = DynamicLink.objects.all()
+    return JsonResponse({'ok': True, 'links': [{
+        'id':         l.id,
+        'short_code': l.short_code,
+        'label':      l.display_label(),
+        'target_url': l.target_url,
+        'scan_count': l.scan_count,
+        'is_active':  l.is_active,
+        'created_at': l.created_at.strftime('%d %b %Y'),
+        'image':      l.image_b64,
+    } for l in links]})
+
+
+@require_POST
+def dynamic_create(request):
+    """Create a new dynamic QR link."""
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
+
+    target_url = payload.get('target_url', '').strip()
+    if not target_url or not target_url.startswith(('http://', 'https://')):
+        return JsonResponse({'ok': False, 'error': 'A valid URL is required'}, status=400)
+
+    label     = payload.get('label', '').strip()[:120]
+    qr_color  = payload.get('qr_color', '#000000')
+    bg_color  = payload.get('bg_color', '#ffffff')
+    qr_style  = payload.get('qr_style', 'square')
+
+    link      = DynamicLink.objects.create(
+        target_url=target_url, label=label,
+        qr_color=qr_color, bg_color=bg_color, qr_style=qr_style,
+    )
+
+    # build the redirect URL that goes in the QR code
+    base = request.build_absolute_uri('/')[:-1]
+    redirect_url = f'{base}/r/{link.short_code}/'
+    img  = generate_qr_image(redirect_url, size=300, color=qr_color, bg=bg_color, style=qr_style)
+    DynamicLink.objects.filter(pk=link.pk).update(image_b64=img)
+    link.refresh_from_db()
+
+    return JsonResponse({'ok': True, 'link': {
+        'id':           link.id,
+        'short_code':   link.short_code,
+        'redirect_url': redirect_url,
+        'image':        link.image_b64,
+        'target_url':   link.target_url,
+        'label':        link.display_label(),
+        'scan_count':   link.scan_count,
+    }})
+
+
+@require_POST
+def dynamic_update(request, pk):
+    """Update the target URL and/or label of a dynamic link."""
+    try:
+        link = DynamicLink.objects.get(pk=pk)
+    except DynamicLink.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
+
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
+
+    target_url = payload.get('target_url', '').strip()
+    if target_url:
+        if not target_url.startswith(('http://', 'https://')):
+            return JsonResponse({'ok': False, 'error': 'A valid URL is required'}, status=400)
+        link.target_url = target_url
+
+    if 'label' in payload:
+        link.label = payload['label'][:120]
+    if 'is_active' in payload:
+        link.is_active = bool(payload['is_active'])
+    link.save()
+
+    return JsonResponse({'ok': True, 'target_url': link.target_url, 'label': link.label, 'is_active': link.is_active})
+
+
+@require_POST
+def dynamic_delete(request, pk):
+    """Delete a dynamic link and all its scan events."""
+    try:
+        DynamicLink.objects.get(pk=pk).delete()
+        return JsonResponse({'ok': True})
+    except DynamicLink.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
+
+
+@require_GET
+def dynamic_stats(request, pk):
+    """Per-link scan stats: total, by day (last 14 days)."""
+    try:
+        link = DynamicLink.objects.get(pk=pk)
+    except DynamicLink.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
+
+    fourteen_days_ago = timezone.now() - timedelta(days=14)
+    by_day = list(
+        ScanEvent.objects.filter(link=link, scanned_at__gte=fourteen_days_ago)
+        .annotate(day=TruncDate('scanned_at'))
+        .values('day')
+        .annotate(count=Count('id'))
+        .order_by('day')
+    )
+    for item in by_day:
+        item['day'] = item['day'].strftime('%d %b')
+
+    return JsonResponse({
+        'ok':         True,
+        'total':      link.scan_count,
+        'by_day':     by_day,
+        'target_url': link.target_url,
+        'label':      link.display_label(),
+        'is_active':  link.is_active,
+        'created_at': link.created_at.strftime('%d %b %Y'),
+    })
+
+
+@require_POST
+def save_scan(request):
+    """Save a scanner result to QR history."""
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
+
+    content = payload.get('content', '').strip()
+    if not content:
+        return JsonResponse({'ok': False, 'error': 'No content'}, status=400)
+
+    # detect type
+    if content.startswith(('http://', 'https://')):
+        qr_type = 'url'
+    elif content.startswith('WIFI:'):
+        qr_type = 'wifi'
+    elif content.startswith('BEGIN:VCARD'):
+        qr_type = 'contact'
+    elif content.startswith('mailto:'):
+        qr_type = 'email'
+    elif content.startswith('sms:') or content.startswith('SMSTO:'):
+        qr_type = 'sms'
+    elif content.startswith('tel:'):
+        qr_type = 'phone'
+    elif content.startswith('geo:'):
+        qr_type = 'location'
+    else:
+        qr_type = 'text'
+
+    img = generate_qr_image(content, size=200)
+    obj = QRCode.objects.create(
+        qr_type=qr_type, label=f'Scanned: {content[:40]}',
+        content=content, image_b64=img,
+    )
+    return JsonResponse({'ok': True, 'id': obj.id, 'type': qr_type})

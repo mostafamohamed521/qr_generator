@@ -38,3 +38,50 @@ class QRCode(models.Model):
 
     def __str__(self):
         return f"[{self.get_qr_type_display()}] {self.display_label()} — {self.created_at:%Y-%m-%d %H:%M}"
+
+
+import secrets
+from django.utils import timezone
+
+
+def _gen_code():
+    """Generate a unique 8-character short code."""
+    return secrets.token_urlsafe(6)[:8]
+
+
+class DynamicLink(models.Model):
+    """A QR code whose destination URL can be edited without reprinting."""
+    short_code  = models.CharField(max_length=20, unique=True, default=_gen_code, db_index=True)
+    label       = models.CharField(max_length=120, blank=True, default='')
+    target_url  = models.URLField(max_length=2000)
+    image_b64   = models.TextField(blank=True, default='')
+    qr_color    = models.CharField(max_length=20, default='#000000')
+    bg_color    = models.CharField(max_length=20, default='#ffffff')
+    qr_style    = models.CharField(max_length=20, default='square')
+    scan_count  = models.PositiveIntegerField(default=0)
+    is_active   = models.BooleanField(default=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name        = 'Dynamic Link'
+        verbose_name_plural = 'Dynamic Links'
+
+    def display_label(self):
+        return self.label or self.target_url[:50]
+
+    def __str__(self):
+        return f"[{self.short_code}] {self.display_label()}"
+
+
+class ScanEvent(models.Model):
+    """One scan of a DynamicLink — stored for per-link analytics."""
+    link        = models.ForeignKey(DynamicLink, on_delete=models.CASCADE, related_name='scans')
+    scanned_at  = models.DateTimeField(default=timezone.now, db_index=True)
+    ip_hash     = models.CharField(max_length=64, blank=True, default='')
+    user_agent  = models.TextField(blank=True, default='')
+    referer     = models.URLField(max_length=500, blank=True, default='')
+
+    class Meta:
+        ordering = ['-scanned_at']

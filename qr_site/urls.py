@@ -20,3 +20,9 @@ urlpatterns += i18n_patterns(
     path('api/v1/', include('api.urls')),
     prefix_default_language=False,
 )
+
+# Dynamic QR redirect — language-prefix free so phone cameras work everywhere
+from qrapp import views as qr_views
+urlpatterns += [
+    path('r/<str:short_code>/', qr_views.dynamic_redirect, name='dynamic_redirect'),
+]
