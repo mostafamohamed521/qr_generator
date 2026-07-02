@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Teams{% endblock %}
+{% block nav_teams %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.team-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-top:18px; }
+.team-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px; box-shadow:var(--shadow); position:relative; animation:fade-up .35s ease both; transition:box-shadow .2s; cursor:pointer; }
+.team-card:hover { box-shadow:0 6px 28px rgba(109,77,251,.18); }
+.team-card.active-team { border-color:var(--accent); }
+.team-card.active-team::before { content:'Active'; position:absolute; top:12px; right:12px; padding:2px 9px; border-radius:20px; font-size:.68rem; font-weight:700; background:var(--accent-soft); color:var(--accent); }
+.team-avatar { width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1.4rem; color:#fff; margin-bottom:14px; }
+.team-name { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1rem; margin-bottom:4px; }
+.team-meta { font-size:.78rem; color:var(--text-muted); margin-bottom:14px; }
+.role-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:.68rem; font-weight:700; }
+.role-owner { background:rgba(240,196,25,.15); color:#c9980a; }
+.role-admin { background:rgba(109,77,251,.12); color:var(--accent); }
+.role-member { background:var(--hover); color:var(--text-muted); }
+.team-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:none; align-items:center; justify-content:center; }
+.modal-backdrop.open { display:flex; }
+.modal { background:var(--surface-solid); border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; width:calc(100% - 40px); max-width:520px; box-shadow:var(--shadow); animation:fade-up .25s ease; position:relative; max-height:90vh; overflow-y:auto; }
+.modal h2 { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:18px; }
+.modal-close { position:absolute; top:14px; right:14px; background:none; border:1px solid var(--border); border-radius:8px; padding:3px 9px; cursor:pointer; color:var(--text-muted); }
+.mf { margin-bottom:14px; }
+.mf label { display:block; font-size:.82rem; font-weight:600; margin-bottom:6px; }
+.member-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.member-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.8rem; color:#fff; flex-shrink:0; }
+.member-info { flex:1; min-width:0; }
+.member-name { font-weight:600; font-size:.84rem; }
+.member-email { font-size:.72rem; color:var(--text-muted); }
+.audit-entry { padding:8px 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+.audit-action { font-weight:600; color:var(--text); }
+.audit-meta  { font-size:.72rem; color:var(--text-muted); margin-top:2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header" style="margin-bottom:30px">
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Teams</h1>
+  <p style="color:var(--text-muted)">Collaborate with your team on shared QR codes</p>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+  <button class="btn-gen" style="width:auto;padding:10px 22px" onclick="openModal('create-modal')">
+    <span class="btn-label">+ New Team</span>
+  </button>
+</div>
+
+<div class="team-grid" id="team-grid">
+  <div class="stat-card" style="grid-column:1/-1;padding:32px;text-align:center;color:var(--text-muted)">Loading…</div>
+</div>
+
+<!-- Create team modal -->
+<div class="modal-backdrop" id="create-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('create-modal')">✕</button>
+    <h2>Create a new team</h2>
+    <div class="mf">
+      <label>Team name</label>
+      <input type="text" id="new-team-name" class="fi" placeholder="e.g. Marketing Squad" required>
+      <div id="create-err" style="color:var(--danger);font-size:.76rem;margin-top:5px;display:none"></div>
+    </div>
+    <button class="btn-gen" style="width:100%" onclick="createTeam()">
+      <span class="btn-label">Create team</span>
+    </button>
+  </div>
+</div>
+
+<!-- Team detail modal -->
+<div class="modal-backdrop" id="team-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('team-modal')">✕</button>
+    <div id="team-modal-body">Loading…</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TAPI = '/teams/api/';
+
+async function loadTeams() {
+  const res  = await fetch(`${TAPI}my/`);
+  const data = await res.json();
+  const grid = document.getElementById('team-grid');
+  if (!data.ok || !data.teams.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--text-muted)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="44" height="44" style="display:block;margin:0 auto 14px;opacity:.3">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      <p>No teams yet — create one to start collaborating.</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = data.teams.map((t, i) => `
+    <div class="team-card ${t.active ? 'active-team' : ''}" style="animation-delay:${i * .05}s" onclick="openTeam(${t.id}, '${esc(t.name)}', '${t.role}')">
+      <div class="team-avatar">${esc(t.name[0].toUpperCase())}</div>
+      <div class="team-name">${esc(t.name)}</div>
+      <div class="team-meta">${t.members} member${t.members !== 1 ? 's' : ''}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="role-badge role-${t.role}">${t.role.charAt(0).toUpperCase() + t.role.slice(1)}</span>
+        <div class="team-actions" onclick="event.stopPropagation()">
+          ${!t.active ? `<button class="act-btn" style="padding:5px 10px;font-size:.72rem" onclick="switchTeam(${t.id})">Switch</button>` : ''}
+          ${t.role === 'owner' ? `<button class="act-btn danger" style="padding:5px 10px;font-size:.72rem;color:var(--danger)" onclick="deleteTeam(${t.id})">Delete</button>` : `<button class="act-btn" style="padding:5px 10px;font-size:.72rem" onclick="leaveTeam(${t.id})">Leave</button>`}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Create ────────────────────────────────────────────────────────────────────
+async function createTeam() {
+  const name = document.getElementById('new-team-name').value.trim();
+  const errEl = document.getElementById('create-err');
+  if (!name) { errEl.textContent = 'Please enter a team name'; errEl.style.display='block'; return; }
+  errEl.style.display = 'none';
+
+  const res  = await fetch(`${TAPI}create/`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+    body: JSON.stringify({ name }),
+  });
+  const data = await res.json();
+  if (data.ok) { closeModal('create-modal'); toast('Team created!', 'ok'); loadTeams(); }
+  else { errEl.textContent = data.error; errEl.style.display = 'block'; }
+}
+
+// ── Switch / leave / delete ───────────────────────────────────────────────────
+async function switchTeam(id) {
+  const res = await fetch(`${TAPI}${id}/switch/`, { method:'POST', headers:{'X-CSRFToken':csrfToken()} });
+  const data = await res.json();
+  if (data.ok) { toast(`Switched to ${data.team_name}`, 'ok'); loadTeams(); }
+}
+async function leaveTeam(id) {
+  if (!confirm('Leave this team?')) return;
+  const res = await fetch(`${TAPI}${id}/leave/`, { method:'POST', headers:{'X-CSRFToken':csrfToken()} });
+  const data = await res.json();
+  if (data.ok) { toast('Left team', 'ok'); loadTeams(); }
+  else toast(data.error, 'err');
+}
+async function deleteTeam(id) {
+  if (!confirm('Permanently delete this team and all its data?')) return;
+  const res = await fetch(`${TAPI}${id}/delete/`, { method:'POST', headers:{'X-CSRFToken':csrfToken()} });
+  const data = await res.json();
+  if (data.ok) { toast('Team deleted', 'ok'); loadTeams(); }
+}
+
+// ── Team detail modal ─────────────────────────────────────────────────────────
+let _openTeamId = null;
+async function openTeam(id, name, role) {
+  _openTeamId = id;
+  openModal('team-modal');
+  document.getElementById('team-modal-body').innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
+
+  const [mRes, aRes] = await Promise.all([
+    fetch(`${TAPI}${id}/members/`),
+    fetch(`${TAPI}${id}/audit/`),
+  ]);
+  const mData = await mRes.json();
+  const aData = await aRes.json();
+
+  const isAdmin = mData.is_admin;
+  const inviteSection = isAdmin ? `
+    <div style="margin-top:22px">
+      <div style="font-weight:700;font-size:.88rem;margin-bottom:10px">Invite someone</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="email" id="inv-email" class="fi" placeholder="colleague@example.com" style="flex:1;min-width:160px">
+        <select id="inv-role" class="history-filter">
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button class="act-btn" onclick="inviteMember(${id})" style="padding:9px 14px;font-size:.82rem">Send invite</button>
+      </div>
+      <div id="inv-result" style="font-size:.74rem;margin-top:6px;color:var(--accent)"></div>
+    </div>` : '';
+
+  const membersHtml = mData.members.map(m => `
+    <div class="member-row">
+      <div class="member-avatar">${m.username[0].toUpperCase()}</div>
+      <div class="member-info">
+        <div class="member-name">${esc(m.username)}</div>
+        <div class="member-email">${esc(m.email)} · joined ${esc(m.joined)}</div>
+      </div>
+      <span class="role-badge role-${m.role}">${m.role}</span>
+      ${isAdmin && !m.is_me && m.role !== 'owner' ? `
+        <select class="history-filter" style="margin-left:6px;font-size:.72rem" onchange="changeRole(${id},${m.id},this.value)">
+          <option value="member" ${m.role==='member'?'selected':''}>Member</option>
+          <option value="admin"  ${m.role==='admin' ?'selected':''}>Admin</option>
+        </select>
+        <button class="act-btn" style="padding:4px 8px;font-size:.68rem;color:var(--danger)" onclick="removeMember(${id},${m.id},this)">✕</button>
+      ` : ''}
+    </div>`).join('');
+
+  const pendingHtml = mData.pending.length ? `
+    <div style="margin-top:14px">
+      <div style="font-size:.8rem;font-weight:600;margin-bottom:8px;color:var(--text-muted)">Pending invites</div>
+      ${mData.pending.map(p => `
+        <div style="font-size:.78rem;padding:4px 0;display:flex;align-items:center;gap:8px">
+          <span style="flex:1;color:var(--text-muted)">${esc(p.email)}</span>
+          <span class="role-badge role-${p.role}">${p.role}</span>
+          <span style="color:var(--text-muted)">${esc(p.date)}</span>
+        </div>`).join('')}
+    </div>` : '';
+
+  const auditHtml = aData.entries.length ? aData.entries.slice(0,8).map(e => `
+    <div class="audit-entry">
+      <div class="audit-action">${esc(e.action.replace('.',' › '))}</div>
+      <div class="audit-meta">${esc(e.user)} · ${esc(e.timestamp)}</div>
+    </div>`).join('') : '<p style="color:var(--text-muted);font-size:.82rem">No activity yet</p>';
+
+  document.getElementById('team-modal-body').innerHTML = `
+    <h2 style="margin-bottom:4px">${esc(name)}</h2>
+    <p style="color:var(--text-muted);font-size:.8rem;margin-bottom:20px">${mData.members.length} members</p>
+    <div style="font-weight:700;font-size:.88rem;margin-bottom:10px">Members</div>
+    ${membersHtml}
+    ${pendingHtml}
+    ${inviteSection}
+    <div style="margin-top:22px">
+      <div style="font-weight:700;font-size:.88rem;margin-bottom:10px">Activity Log</div>
+      ${auditHtml}
+    </div>`;
+}
+
+async function inviteMember(id) {
+  const email = document.getElementById('inv-email').value.trim();
+  const role  = document.getElementById('inv-role').value;
+  if (!email) return;
+  const res  = await fetch(`${TAPI}${id}/invite/`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+    body: JSON.stringify({ email, role }),
+  });
+  const data = await res.json();
+  const el   = document.getElementById('inv-result');
+  if (data.ok) {
+    el.style.color = 'var(--accent)';
+    el.textContent = data.auto_added
+      ? `✓ ${email} was added directly (they already have an account).`
+      : `✓ Invite created. Share this link: ${data.invite_url}`;
+    document.getElementById('inv-email').value = '';
+    openTeam(id, '', '');
+  } else {
+    el.style.color = 'var(--danger)';
+    el.textContent = data.error;
+  }
+}
+
+async function changeRole(teamId, userId, newRole) {
+  const res  = await fetch(`${TAPI}${teamId}/role/${userId}/`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+    body: JSON.stringify({ role: newRole }),
+  });
+  const data = await res.json();
+  if (data.ok) toast('Role updated', 'ok'); else toast(data.error, 'err');
+}
+
+async function removeMember(teamId, userId, btn) {
+  if (!confirm('Remove this member?')) return;
+  const res  = await fetch(`${TAPI}${teamId}/remove/${userId}/`, {
+    method: 'POST', headers: { 'X-CSRFToken': csrfToken() },
+  });
+  const data = await res.json();
+  if (data.ok) { toast('Removed', 'ok'); btn.closest('.member-row').remove(); }
+  else toast(data.error, 'err');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  bd.addEventListener('click', e => { if (e.target === bd) closeModal(bd.id); });
+});
+document.getElementById('new-team-name')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') createTeam();
+});
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function csrfToken() { return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||''; }
+
+loadTeams();
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Invite Accepted{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:60px auto;text-align:center">
+  <div class="stat-card" style="padding:36px">
+    <div style="font-size:3rem;margin-bottom:16px">🎉</div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.5rem;margin-bottom:8px">You're in!</h1>
+    <p style="color:var(--text-muted);margin-bottom:20px">You've joined <strong>{{ team.name }}</strong>.</p>
+    <a href="{% url 'teams:teams' %}" class="btn-primary" style="text-decoration:none;display:inline-flex;padding:11px 24px">Go to Teams</a>
+  </div>
+</div>
+{% endblock %}
