@@ -2,10 +2,24 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'django-insecure-qr-forge-change-this-in-production-xyz-2024'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
 
+# ── Security ──────────────────────────────────────────────────────────────────
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-qr-forge-change-this-in-production-xyz-2024')
+DEBUG      = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
+
+# Production security headers (set via env when deploying)
+if not DEBUG:
+    SECURE_SSL_REDIRECT          = True
+    SESSION_COOKIE_SECURE        = True
+    CSRF_COOKIE_SECURE           = True
+    SECURE_BROWSER_XSS_FILTER    = True
+    SECURE_CONTENT_TYPE_NOSNIFF  = True
+    SECURE_HSTS_SECONDS          = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD          = True
+
+# ── Apps ──────────────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -14,22 +28,24 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'qrapp',
-    'core',        # landing / marketing pages
-    'accounts',    # auth, profile, 2FA
-    'teams',       # workspaces & collaboration
-    'billing',     # plans & subscriptions
-    'api',         # public API keys & webhooks
+    'core',
+    'accounts',
+    'teams',
+    'billing',
+    'api',
 ]
 
+# ── Middleware ────────────────────────────────────────────────────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',   # must sit before CommonMiddleware
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'qr_site.middleware.RateLimitMiddleware',   # custom rate limiter
 ]
 
 ROOT_URLCONF = 'qr_site.urls'
@@ -54,10 +70,11 @@ DATABASES = {'default': {
     'NAME': BASE_DIR / 'db.sqlite3',
 }}
 
+# ── i18n ──────────────────────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
+TIME_ZONE     = 'UTC'
+USE_I18N      = True
+USE_TZ        = True
 
 LANGUAGES = [
     ('en', 'English'),
@@ -65,13 +82,45 @@ LANGUAGES = [
 ]
 LOCALE_PATHS = [BASE_DIR / 'locale']
 
-LOGIN_URL = 'accounts:login'
+# ── Auth ──────────────────────────────────────────────────────────────────────
+LOGIN_URL          = 'accounts:login'
 LOGIN_REDIRECT_URL = 'qrapp:index'
-LOGOUT_REDIRECT_URL = 'core:landing'
+LOGOUT_REDIRECT_URL= 'core:landing'
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+# ── Static / Media ────────────────────────────────────────────────────────────
+STATIC_URL      = '/static/'
+STATICFILES_DIRS= [BASE_DIR / 'static']
+STATIC_ROOT     = BASE_DIR / 'staticfiles'
+MEDIA_URL       = '/media/'
+MEDIA_ROOT      = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── Rate Limiting (per IP per minute) ────────────────────────────────────────
+RATE_LIMIT_GENERATE   = 30   # generate endpoint per minute
+RATE_LIMIT_AUTH       = 10   # login/register per minute
+RATE_LIMIT_GLOBAL     = 200  # all other API per minute
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {'format': '[%(levelname)s %(asctime)s] %(name)s: %(message)s'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'qrapp':  {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'teams':  {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
+}

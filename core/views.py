@@ -54,3 +54,25 @@ def faq(request):
         {'q': 'Is there an API?', 'a': 'Yes, Pro and Team plans include API keys and webhooks for programmatic access.'},
     ]
     return render(request, 'core/faq.html', {'faqs': faqs})
+
+
+from django.http import HttpResponse
+
+
+def robots_txt(request):
+    content = """User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /app/api/
+Disallow: /teams/api/
+Sitemap: https://yoursite.com/sitemap.xml
+"""
+    return HttpResponse(content, content_type='text/plain')
+
+
+def sitemap_xml(request):
+    base = request.build_absolute_uri('/')[:-1]
+    pages = ['', '/pricing/', '/about/', '/faq/', '/contact/']
+    urls = '\n'.join(f'  <url><loc>{base}{p}</loc></url>' for p in pages)
+    content = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}\n</urlset>'
+    return HttpResponse(content, content_type='application/xml')

@@ -1,0 +1,23 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>500 — Server Error | QR Forge</title>
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script>(function(){var t=localStorage.getItem('qr-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;position:relative;z-index:1">
+  <div style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:clamp(5rem,20vw,10rem);line-height:1;background:linear-gradient(120deg,#e0395c,#ff9466);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px">500</div>
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.5rem;margin-bottom:10px">Server error</h1>
+  <p style="color:var(--text-muted);max-width:360px;margin-bottom:28px">Something went wrong on our end. We've been notified and are working on a fix.</p>
+  <a href="/" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;font-weight:700;font-size:.9rem;text-decoration:none;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-2))">← Back to Home</a>
+</div>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
