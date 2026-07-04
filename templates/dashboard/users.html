@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Manage Users{% endblock %}
+
+{% block extra_head %}
+<style>
+.user-table { width:100%; border-collapse:collapse; font-size:.84rem; }
+.user-table th { text-align:left; padding:10px 12px; font-weight:700; font-size:.74rem; color:var(--text-muted); border-bottom:2px solid var(--border); text-transform:uppercase; letter-spacing:.04em; }
+.user-table td { padding:11px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.user-table tr:hover td { background:var(--hover-soft); }
+.badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:.68rem; font-weight:700; }
+.badge-active   { background:rgba(20,216,164,.12); color:#0fae87; }
+.badge-inactive { background:rgba(224,57,92,.1);  color:var(--danger); }
+.badge-staff    { background:rgba(109,77,251,.12); color:var(--accent); }
+.avatar { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.75rem; color:#fff; margin-right:8px; vertical-align:middle; }
+.table-wrap { overflow-x:auto; }
+.toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+.toolbar input { flex:1; min-width:180px; }
+.pagination { display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:14px; font-size:.82rem; }
+.pagination button { padding:5px 12px; border-radius:8px; border:1px solid var(--border); background:var(--field-bg); color:var(--text); cursor:pointer; font-weight:600; }
+.pagination button:disabled { opacity:.35; cursor:not-allowed; }
+.pagination button:not(:disabled):hover { border-color:var(--accent); color:var(--accent); }
+.action-btn { padding:4px 9px; border-radius:7px; border:1px solid var(--border); background:var(--field-bg); color:var(--text); font-size:.72rem; font-weight:600; cursor:pointer; margin-right:4px; }
+.action-btn:hover { border-color:var(--accent); color:var(--accent); }
+.action-btn.danger:hover { border-color:var(--danger); color:var(--danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
+  <div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:4px">User Management</h1>
+    <p style="color:var(--text-muted)"><a href="{% url 'dashboard:home' %}" style="color:var(--accent)">← Dashboard</a></p>
+  </div>
+  <a href="{% url 'dashboard:export_users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px">📥 Export CSV</a>
+</div>
+
+<div class="card" style="padding:22px">
+  <div class="toolbar">
+    <input type="text" id="search" class="fi" placeholder="Search by name or email…" style="max-width:300px">
+    <span id="count-lbl" style="color:var(--text-muted);font-size:.82rem">Loading…</span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>QR Codes</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="user-tbody">
+        <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <button id="prev-btn" onclick="goPage(-1)">← Prev</button>
+    <span id="page-info"></span>
+    <button id="next-btn" onclick="goPage(1)">Next →</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+
+async function loadUsers() {
+  const q    = document.getElementById('search').value.trim();
+  const res  = await fetch(`{% url 'dashboard:users_list' %}?page=${currentPage}&q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  if (!data.ok) return;
+
+  document.getElementById('count-lbl').textContent = `${data.total} users total`;
+  document.getElementById('page-info').textContent = `${data.page} / ${data.pages}`;
+  document.getElementById('prev-btn').disabled = data.page <= 1;
+  document.getElementById('next-btn').disabled = data.page >= data.pages;
+
+  const tbody = document.getElementById('user-tbody');
+  if (!data.users.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px">No users found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.users.map(u => `
+    <tr id="urow-${u.id}">
+      <td>
+        <span class="avatar">${(u.name||u.email)[0].toUpperCase()}</span>
+        <span style="font-weight:600">${esc(u.name || '—')}</span>
+      </td>
+      <td>${esc(u.email)}</td>
+      <td style="font-weight:600;color:var(--accent)">${u.qr_count}</td>
+      <td>
+        <span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}" id="badge-active-${u.id}">
+          ${u.is_active ? '● Active' : '○ Inactive'}
+        </span>
+        ${u.is_staff ? '<span class="badge badge-staff" style="margin-left:4px">Staff</span>' : ''}
+      </td>
+      <td style="color:var(--text-muted)">${esc(u.date_joined)}</td>
+      <td>
+        <button class="action-btn" onclick="toggleActive(${u.id}, ${!u.is_active})" title="${u.is_active ? 'Deactivate' : 'Activate'}">
+          ${u.is_active ? 'Deactivate' : 'Activate'}
+        </button>
+        <button class="action-btn ${u.is_staff ? 'danger' : ''}" onclick="toggleStaff(${u.id}, ${!u.is_staff})">
+          ${u.is_staff ? 'Remove Staff' : 'Make Staff'}
+        </button>
+        <button class="action-btn danger" onclick="deleteUser(${u.id}, '${esc(u.email)}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+function goPage(delta) {
+  currentPage = Math.max(1, currentPage + delta);
+  loadUsers();
+}
+
+async function toggleActive(id, newState) {
+  const res  = await fetch(`/dashboard/api/users/${id}/toggle/`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+    body: JSON.stringify({is_active: newState}),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    const badge = document.getElementById(`badge-active-${id}`);
+    badge.className = `badge ${data.is_active ? 'badge-active' : 'badge-inactive'}`;
+    badge.textContent = data.is_active ? '● Active' : '○ Inactive';
+    toast(data.is_active ? 'User activated' : 'User deactivated', 'ok');
+  } else toast(data.error, 'err');
+}
+
+async function toggleStaff(id, newState) {
+  const res  = await fetch(`/dashboard/api/users/${id}/toggle/`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+    body: JSON.stringify({is_staff: newState}),
+  });
+  const data = await res.json();
+  if (data.ok) { toast(newState ? 'Staff granted' : 'Staff removed', 'ok'); loadUsers(); }
+  else toast(data.error, 'err');
+}
+
+async function deleteUser(id, email) {
+  if (!confirm(`Permanently delete ${email} and all their data?`)) return;
+  const res  = await fetch(`/dashboard/api/users/${id}/delete/`, {
+    method:'POST', headers:{'X-CSRFToken':csrfToken()},
+  });
+  const data = await res.json();
+  if (data.ok) {
+    document.getElementById(`urow-${id}`)?.remove();
+    toast('User deleted', 'ok');
+  } else toast(data.error, 'err');
+}
+
+let searchTimer = null;
+document.getElementById('search').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  currentPage = 1;
+  searchTimer = setTimeout(loadUsers, 350);
+});
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function csrfToken(){ return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||''; }
+
+loadUsers();
+</script>
+{% endblock %}

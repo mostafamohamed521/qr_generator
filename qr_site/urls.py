@@ -36,6 +36,7 @@ urlpatterns += i18n_patterns(
     path('teams/', include('teams.urls')),
     path('billing/', include('billing.urls')),
     path('api/v1/', include('api.urls')),
+    path('dashboard/', include('dashboard.urls')),
     prefix_default_language=False,
 )
 

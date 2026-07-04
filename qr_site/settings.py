@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'teams',
     'billing',
     'api',
+    'dashboard',
 ]
 
 # ── Middleware ────────────────────────────────────────────────────────────────

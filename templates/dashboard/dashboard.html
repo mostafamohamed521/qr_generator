@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+.dash-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+@media(max-width:900px){.dash-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.dash-grid{grid-template-columns:1fr 1fr}}
+.dash-stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow); animation:fade-up .4s ease both; }
+.dash-stat-val { font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1.8rem; margin-bottom:4px; }
+.dash-stat-lbl { font-size:.78rem; color:var(--text-muted); font-weight:500; }
+.dash-stat-delta { font-size:.72rem; margin-top:5px; }
+.delta-up   { color:#14d8a4; } .delta-down { color:var(--danger); }
+.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+@media(max-width:900px){.charts-row{grid-template-columns:1fr}}
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px; box-shadow:var(--shadow); }
+.chart-card h3 { font-family:'Space Grotesk',sans-serif; font-size:.92rem; font-weight:700; margin-bottom:16px; }
+.chart-wrap { position:relative; height:180px; }
+.bottom-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:900px){.bottom-row{grid-template-columns:1fr}}
+.user-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.user-row:last-child { border-bottom:none; }
+.ua { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.78rem; color:#fff; flex-shrink:0; }
+.un { font-size:.82rem; font-weight:600; }
+.ue { font-size:.72rem; color:var(--text-muted); }
+.uq { margin-left:auto; font-size:.78rem; font-weight:700; color:var(--accent); }
+.log-row { padding:8px 0; border-bottom:1px solid var(--border); font-size:.8rem; }
+.log-row:last-child { border-bottom:none; }
+.log-action { font-weight:600; }
+.log-meta   { font-size:.72rem; color:var(--text-muted); margin-top:2px; }
+.nav-link-admin { background:rgba(224,57,92,.12); color:var(--danger) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
+  <div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:4px">Admin Dashboard</h1>
+    <p style="color:var(--text-muted)">Site-wide overview</p>
+  </div>
+  <div style="display:flex;gap:8px">
+    <a href="{% url 'dashboard:users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px">👥 Manage Users</a>
+    <a href="{% url 'dashboard:export_users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px">📥 Export CSV</a>
+  </div>
+</div>
+
+<div class="dash-grid" id="stat-cards">
+  {% for i in "12345678" %}<div class="dash-stat" style="animation-delay:{{ forloop.counter0 }}s"><div class="dash-stat-val" style="color:var(--accent)">—</div><div class="dash-stat-lbl">Loading…</div></div>{% endfor %}
+</div>
+
+<div class="charts-row">
+  <div class="chart-card">
+    <h3>👤 User Signups — Last 14 Days</h3>
+    <div class="chart-wrap"><canvas id="user-chart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>📊 QR Code Activity — Last 14 Days</h3>
+    <div class="chart-wrap"><canvas id="qr-chart"></canvas></div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-card">
+    <h3>🏷️ QR Types Breakdown</h3>
+    <div class="chart-wrap"><canvas id="type-chart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>⚡ Recent Activity</h3>
+    <div id="activity-log" style="max-height:200px;overflow-y:auto">
+      <p style="color:var(--text-muted);font-size:.82rem">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-row">
+  <div class="chart-card">
+    <h3>🏆 Top Users by QR Count</h3>
+    <div id="top-users"></div>
+  </div>
+  <div class="chart-card">
+    <h3>🔢 Quick Stats</h3>
+    <div id="quick-stats"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadDashboard() {
+  const res  = await fetch('{% url "dashboard:stats" %}');
+  const data = await res.json();
+  if (!data.ok) return;
+
+  const { stats, user_growth, qr_growth, qr_by_type, top_users, recent } = data;
+
+  // ── Stat cards ──────────────────────────────────────────────────────────────
+  const cards = [
+    { val: stats.total_users,   lbl: 'Total Users',     delta: `+${stats.new_week} this week`,   color: 'var(--accent)' },
+    { val: stats.total_qr,      lbl: 'QR Codes',        delta: `+${stats.new_qr_week} this week`, color: 'var(--accent-2)' },
+    { val: stats.total_dynamic, lbl: 'Dynamic Links',   delta: '',                                color: 'var(--accent)' },
+    { val: stats.total_scans,   lbl: 'Dynamic Scans',   delta: '',                                color: 'var(--accent-3)' },
+    { val: stats.total_teams,   lbl: 'Teams',           delta: '',                                color: 'var(--accent-2)' },
+    { val: stats.total_users > 0 ? (stats.total_qr/stats.total_users).toFixed(1) : 0,
+      lbl: 'QR / User (avg)', delta: '', color: 'var(--accent)' },
+    { val: qr_by_type[0]?.qr_type?.toUpperCase() || '—',
+      lbl: 'Top QR type', delta: `${qr_by_type[0]?.count || 0} codes`, color: 'var(--accent-2)' },
+    { val: stats.total_users - (top_users.filter(u=>!u.is_active).length),
+      lbl: 'Active Users', delta: '', color: '#14d8a4' },
+  ];
+
+  document.getElementById('stat-cards').innerHTML = cards.map((c,i) => `
+    <div class="dash-stat" style="animation-delay:${i*0.04}s">
+      <div class="dash-stat-val" style="color:${c.color}">${c.val}</div>
+      <div class="dash-stat-lbl">${c.lbl}</div>
+      ${c.delta ? `<div class="dash-stat-delta delta-up">▲ ${c.delta}</div>` : ''}
+    </div>`).join('');
+
+  // ── Chart helpers ───────────────────────────────────────────────────────────
+  const cs  = getComputedStyle(document.documentElement);
+  const accent  = cs.getPropertyValue('--accent').trim();
+  const accent2 = cs.getPropertyValue('--accent-2').trim();
+  const accent3 = cs.getPropertyValue('--accent-3').trim();
+  const muted   = cs.getPropertyValue('--text-muted').trim();
+  const text    = cs.getPropertyValue('--text').trim();
+  const grid    = 'rgba(128,128,128,.1)';
+
+  const baseOpts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:text,font:{family:'Inter',size:10}}}},
+    scales:{
+      x:{ticks:{color:muted,font:{size:10}},grid:{color:grid}},
+      y:{ticks:{color:muted,font:{size:10}},grid:{color:grid},beginAtZero:true},
+    }
+  };
+
+  // User growth chart
+  new Chart(document.getElementById('user-chart'), {
+    type:'line',
+    data:{
+      labels: user_growth.map(d=>d.day),
+      datasets:[{
+        label:'Signups', data: user_growth.map(d=>d.count),
+        borderColor:accent, backgroundColor:accent+'22',
+        fill:true, tension:.4, pointRadius:3, pointBackgroundColor:accent,
+      }]
+    },
+    options:{...baseOpts}
+  });
+
+  // QR growth chart
+  new Chart(document.getElementById('qr-chart'), {
+    type:'bar',
+    data:{
+      labels: qr_growth.map(d=>d.day),
+      datasets:[{
+        label:'QR Codes', data: qr_growth.map(d=>d.count),
+        backgroundColor: accent2+'cc', borderColor: accent2, borderWidth:1, borderRadius:4,
+      }]
+    },
+    options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}}
+  });
+
+  // Type breakdown (doughnut)
+  const colours = [accent,accent2,accent3,'#f0c419','#8b5cf6','#06b6d4','#84cc16','#f97316'];
+  new Chart(document.getElementById('type-chart'), {
+    type:'doughnut',
+    data:{
+      labels: qr_by_type.map(t=>t.qr_type.toUpperCase()),
+      datasets:[{data:qr_by_type.map(t=>t.count), backgroundColor:colours, borderWidth:0}]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{color:text,font:{size:11}}}},
+    }
+  });
+
+  // Activity log
+  document.getElementById('activity-log').innerHTML = recent.length
+    ? recent.map(e=>`
+        <div class="log-row">
+          <div class="log-action">${e.action.replace('.',' › ')}</div>
+          <div class="log-meta">${e.username} · ${e.created_at}${e.team__name ? ' · '+e.team__name : ''}</div>
+        </div>`).join('')
+    : '<p style="color:var(--text-muted);font-size:.82rem">No activity yet</p>';
+
+  // Top users
+  document.getElementById('top-users').innerHTML = top_users.length
+    ? top_users.map(u=>`
+        <div class="user-row">
+          <div class="ua">${(u.name||u.email)[0].toUpperCase()}</div>
+          <div style="flex:1;min-width:0">
+            <div class="un">${u.name||'—'}</div>
+            <div class="ue">${u.email}</div>
+          </div>
+          <div class="uq">${u.qr_count} QR</div>
+        </div>`).join('')
+    : '<p style="color:var(--text-muted);font-size:.82rem">No users yet</p>';
+
+  // Quick stats
+  document.getElementById('quick-stats').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${[
+        ['Total Users',    stats.total_users,   accent],
+        ['Total QR Codes', stats.total_qr,      accent2],
+        ['Teams',          stats.total_teams,   accent],
+        ['Dynamic Scans',  stats.total_scans,   accent3],
+      ].map(([lbl,val,col])=>`
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px">
+            <span>${lbl}</span><span style="font-weight:700;color:${col}">${val}</span>
+          </div>
+          <div style="height:5px;border-radius:5px;background:var(--border)">
+            <div style="height:100%;border-radius:5px;background:${col};width:${Math.min(val/Math.max(stats.total_qr,1)*100,100)}%;transition:width .6s"></div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+loadDashboard();
+</script>
+{% endblock %}
