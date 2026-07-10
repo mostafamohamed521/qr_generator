@@ -1,86 +1,320 @@
-# QR Forge 🔳
+# 🔳 QR Forge
 
-Professional QR Code Generator built with Django 4.2 + vanilla JS.
+<p align="center">
+  <img src="https://img.shields.io/badge/Django-4.2.7-092E20?style=for-the-badge&logo=django&logoColor=white">
+  <img src="https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img src="https://img.shields.io/badge/JavaScript-ES6-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black">
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white">
+  <img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge">
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge">
+</p>
 
-## Features
-- **8 QR types**: URL, Text, Contact (vCard), WiFi, SMS, Email, Phone, Location
-- **Custom colors**: QR color + background color
-- **Custom size**: 150px → 800px
-- **Two styles**: Square & Rounded modules
-- **History**: last 40 QR codes with thumbnails, click to re-preview
-- **Actions**: Save (PNG), Copy to clipboard, Share (Web Share API)
-- **Labels**: name your QR codes for easy identification
-- **Django Admin** panel to manage all records
+<p align="center">
+A modern, secure, and feature-rich QR Code Generator built with Django.
+Create beautiful and customizable QR Codes with a clean interface, history management, and production-ready architecture.
+</p>
 
-## Project Structure
+---
+
+# ✨ Features
+
+- 🔗 Generate QR Codes for **8 different data types**
+  - URL
+  - Plain Text
+  - Contact (vCard)
+  - WiFi
+  - SMS
+  - Email
+  - Phone Number
+  - Google Maps Location
+
+- 🎨 Customize QR Color
+- 🖼️ Customize Background Color
+- 📏 Adjustable Size (150px → 800px)
+- 🔲 Multiple QR Styles (Square / Rounded)
+- ⚡ Instant Preview
+- 💾 Download as PNG
+- 📋 Copy to Clipboard
+- 📤 Native Share API
+- 🏷️ QR Labels
+- 🕘 History with Thumbnail Preview
+- 🗑️ Delete Individual QR Codes
+- 🧹 Clear History
+- 👨‍💼 Django Admin Dashboard
+
+---
+
+# 🏗 Project Architecture
 
 ```
-qr_forge/
+QR-Forge/
+│
 ├── manage.py
 ├── requirements.txt
 ├── README.md
-├── db.sqlite3              ← created on first migrate
+├── .env.example
 │
-├── qr_site/                ← Django project config
+├── qr_site/
 │   ├── settings.py
 │   ├── urls.py
-│   ├── wsgi.py
-│   └── asgi.py
+│   ├── asgi.py
+│   └── wsgi.py
 │
-├── qrapp/                  ← Main application
-│   ├── models.py           ← QRCode model
-│   ├── views.py            ← 5 API views
-│   ├── forms.py            ← 8 form classes (one per QR type)
-│   ├── qr_utils.py         ← All QR generation logic
-│   ├── urls.py             ← App URL routing
-│   ├── admin.py            ← Django admin config
-│   ├── apps.py
-│   ├── tests.py            ← 44 tests
+├── qrapp/
+│   ├── admin.py
+│   ├── forms.py
+│   ├── models.py
+│   ├── qr_utils.py
+│   ├── urls.py
+│   ├── views.py
+│   ├── tests.py
 │   └── migrations/
-│       └── 0001_initial.py
 │
 ├── templates/
-│   └── index.html          ← Main page template
+│   └── index.html
 │
-└── static/
-    ├── css/
-    │   └── style.css       ← All styles
-    └── js/
-        └── app.js          ← All frontend logic
+├── static/
+│   ├── css/
+│   └── js/
+│
+├── media/
+│
+└── staticfiles/
 ```
 
-## Quick Start
+---
+
+# 🚀 Tech Stack
+
+### Backend
+
+- Python 3.14
+- Django 4.2
+
+### Frontend
+
+- HTML5
+- CSS3
+- Vanilla JavaScript (ES6)
+
+### Database
+
+- SQLite (Development)
+- PostgreSQL Ready
+
+### Deployment
+
+- Gunicorn
+- WhiteNoise
+- Nginx
+- Environment Variables (.env)
+
+---
+
+# 📸 Screenshots
+
+## Home
+
+```
+screenshots/home.png
+```
+
+## QR Generator
+
+```
+screenshots/generator.png
+```
+
+## History
+
+```
+screenshots/history.png
+```
+
+---
+
+# ⚙️ Installation
+
+## Clone Repository
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+git clone https://github.com/yourusername/QR-Forge.git
 
-# 2. Apply migrations
-python manage.py migrate
-
-# 3. (Optional) Create admin user
-python manage.py createsuperuser
-
-# 4. Run the server
-python manage.py runserver
-
-# Open: http://127.0.0.1:8000
-# Admin: http://127.0.0.1:8000/admin
+cd QR-Forge
 ```
 
-## API Endpoints
+---
 
-| Method | URL | Description |
-|--------|-----|-------------|
-| GET  | `/` | Main page |
-| POST | `/api/generate/` | Generate a QR code |
-| GET  | `/api/history/` | Get last 40 QR codes |
-| POST | `/api/delete/<id>/` | Delete a QR code |
-| POST | `/api/clear/` | Clear all history |
+## Create Virtual Environment
 
-## Run Tests
+```bash
+python -m venv venv
+```
+
+Windows
+
+```bash
+venv\Scripts\activate
+```
+
+Linux / macOS
+
+```bash
+source venv/bin/activate
+```
+
+---
+
+## Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Configure Environment
+
+Create a `.env` file
+
+```env
+DJANGO_SECRET_KEY=your-secret-key
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
+```
+
+---
+
+## Apply Migrations
+
+```bash
+python manage.py migrate
+```
+
+---
+
+## Create Admin
+
+```bash
+python manage.py createsuperuser
+```
+
+---
+
+## Run Server
+
+```bash
+python manage.py runserver
+```
+
+Open
+
+```
+http://127.0.0.1:8000
+```
+
+Admin
+
+```
+http://127.0.0.1:8000/admin
+```
+
+---
+
+# 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/` | Home Page |
+| POST | `/api/generate/` | Generate QR |
+| GET | `/api/history/` | History |
+| POST | `/api/delete/<id>/` | Delete QR |
+| POST | `/api/clear/` | Clear History |
+
+---
+
+# 🧪 Running Tests
 
 ```bash
 python manage.py test qrapp -v 2
-# → 44 tests, all passing
 ```
+
+---
+
+# 🔒 Security
+
+- CSRF Protection
+- Secure Cookies
+- HSTS Support
+- Environment Variables
+- WhiteNoise Static Serving
+- Rate Limiting Ready
+- Secure Password Validation
+
+---
+
+# 📈 Future Improvements
+
+- User Authentication
+- Cloud Sync
+- QR Analytics
+- Logo Upload
+- SVG Export
+- REST API
+- Docker Support
+- Dark Mode
+- Multi-language Support
+
+---
+
+# 🚀 Deployment
+
+Production-ready using:
+
+- Gunicorn
+- WhiteNoise
+- Nginx
+- PostgreSQL
+- Ubuntu Server
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome.
+
+Feel free to fork the project and submit a Pull Request.
+
+---
+
+# 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
+# 👨‍💻 Author
+
+## Mostafa Mohamed
+
+Computer Science Student
+
+Backend Django Developer
+
+GitHub
+
+https://github.com/mostafamohamed521
+
+LinkedIn
+
+(Add your LinkedIn profile here)
+
+---
+
+<p align="center">
+
+⭐ If you like this project, don't forget to give it a Star.
+
+Made with ❤️ using Django.
+
+</p>
