@@ -12,15 +12,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security
 # =============================================================================
 
-SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-qrforge-local-key"
+)
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
-    if host.strip()
-]
+
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS",
+    "127.0.0.1,localhost,mostafa223.pythonanywhere.com"
+).split(",")
 
 # Trusted Origins (Optional)
 CSRF_TRUSTED_ORIGINS = [
