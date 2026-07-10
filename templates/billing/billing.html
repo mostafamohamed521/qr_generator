@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Billing{% endblock %}
+{% block nav_billing %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.plan-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:720px; margin:24px auto; }
+@media(max-width:640px){ .plan-grid{grid-template-columns:1fr} }
+.plan-card { border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; background:var(--surface); position:relative; transition:box-shadow .2s; }
+.plan-card.current { border-color:var(--accent); box-shadow:0 0 0 2px rgba(109,77,251,.18); }
+.plan-card.pro { background:linear-gradient(160deg,rgba(109,77,251,.07),rgba(20,216,164,.07)); }
+.plan-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); padding:3px 14px; border-radius:20px; font-size:.68rem; font-weight:800; white-space:nowrap; }
+.badge-current { background:var(--accent-soft); color:var(--accent); }
+.badge-popular { background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; }
+.plan-name { font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1.2rem; margin-bottom:4px; }
+.plan-price { font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:2.4rem; margin:10px 0; }
+.plan-price span { font-size:.9rem; font-weight:400; color:var(--text-muted); }
+.plan-features { list-style:none; margin:16px 0 22px; display:flex; flex-direction:column; gap:8px; }
+.plan-features li { display:flex; align-items:center; gap:8px; font-size:.85rem; }
+.plan-features li svg { width:15px; height:15px; flex-shrink:0; }
+.feat-yes { color:#14d8a4; }
+.feat-no  { color:var(--text-muted); opacity:.5; }
+.usage-bar-wrap { margin-bottom:6px; }
+.usage-bar-track { height:8px; border-radius:8px; background:var(--border); overflow:hidden; }
+.usage-bar-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width .6s ease; }
+.usage-bar-fill.warn { background:linear-gradient(90deg,#f0c419,#ff9466); }
+.usage-bar-fill.danger { background:linear-gradient(90deg,#ff9466,var(--danger)); }
+.invoice-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:.84rem; }
+.invoice-row:last-child { border-bottom:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px">
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Billing &amp; Plans</h1>
+  <p style="color:var(--text-muted)">Manage your subscription and usage</p>
+</div>
+
+<!-- Current plan banner -->
+<div class="card" style="padding:22px;margin-bottom:24px" id="current-plan-card">
+  <div style="font-size:.8rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Current Plan</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+    <div>
+      <span style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.4rem" id="current-plan-name">Loading…</span>
+      <span id="current-plan-status" style="margin-left:10px;font-size:.78rem;padding:2px 8px;border-radius:20px"></span>
+    </div>
+    <div id="current-plan-actions"></div>
+  </div>
+  <div id="usage-section" style="margin-top:18px;display:none">
+    <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:5px">
+      <span style="color:var(--text-muted)">QR codes this month</span>
+      <span id="usage-label" style="font-weight:600"></span>
+    </div>
+    <div class="usage-bar-track"><div class="usage-bar-fill" id="usage-bar" style="width:0%"></div></div>
+    <p style="font-size:.74rem;color:var(--text-muted);margin-top:5px" id="usage-hint"></p>
+  </div>
+</div>
+
+<!-- Plan cards -->
+<div style="text-align:center;margin-bottom:10px">
+  <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.2rem">Choose your plan</h2>
+</div>
+<div class="plan-grid">
+  {% for plan in plans %}
+  <div class="plan-card {% if sub.plan.code == plan.code %}current{% endif %} {% if plan.code == 'pro' %}pro{% endif %}" id="plan-{{ plan.code }}">
+    {% if sub.plan.code == plan.code %}<div class="plan-badge badge-current">✓ Current plan</div>{% endif %}
+    {% if plan.code == 'pro' and sub.plan.code != 'pro' %}<div class="plan-badge badge-popular">Most popular</div>{% endif %}
+    <div class="plan-name">{{ plan.name }}</div>
+    <div class="plan-price">
+      ${{ plan.price_monthly|floatformat:0 }}
+      {% if plan.price_monthly > 0 %}<span>/mo</span>{% else %}<span>forever</span>{% endif %}
+    </div>
+    <ul class="plan-features">
+      <li>
+        {% if plan.max_qr_per_month == 0 %}
+          <svg class="feat-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Unlimited QR codes
+        {% else %}
+          <svg class="feat-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ plan.max_qr_per_month }} QR codes / month
+        {% endif %}
+      </li>
+      <li>
+        {% if plan.max_dynamic_links == 0 and plan.code == 'pro' %}
+          <svg class="feat-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Unlimited Dynamic QR links
+        {% elif plan.code == 'free' %}
+          <svg class="feat-no" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No Dynamic QR
+        {% endif %}
+      </li>
+      <li>
+        {% if plan.allows_team %}
+          <svg class="feat-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Team collaboration
+        {% else %}
+          <svg class="feat-no" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No team features
+        {% endif %}
+      </li>
+      <li>
+        {% if plan.allows_api %}
+          <svg class="feat-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>API access &amp; webhooks
+        {% else %}
+          <svg class="feat-no" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No API access
+        {% endif %}
+      </li>
+    </ul>
+    {% if sub.plan.code == plan.code %}
+      <button class="btn-gen" style="width:100%;opacity:.5;cursor:default" disabled>
+        <span class="btn-label">Current plan</span>
+      </button>
+    {% elif plan.code == 'pro' %}
+      <button class="btn-gen" style="width:100%" onclick="upgradePlan('pro')">
+        <span class="btn-label">Upgrade to Pro →</span>
+        <div class="spinner"></div>
+      </button>
+    {% else %}
+      <button class="act-btn" style="width:100%;padding:11px" onclick="cancelPlan()">Downgrade to Free</button>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Feature comparison table -->
+<div class="card" style="padding:22px;max-width:720px;margin:24px auto">
+  <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1rem;margin-bottom:16px">Full comparison</h3>
+  <table style="width:100%;font-size:.84rem;border-collapse:collapse">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:8px 0;color:var(--text-muted);font-weight:600">Feature</th>
+        <th style="text-align:center;padding:8px 12px;color:var(--text-muted);font-weight:600">Free</th>
+        <th style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:700">Pro</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in comparison %}
+      <tr>
+        <td style="padding:9px 0;border-top:1px solid var(--border)">{{ row.feature }}</td>
+        <td style="text-align:center;padding:9px 12px;border-top:1px solid var(--border);color:var(--text-muted)">{{ row.free }}</td>
+        <td style="text-align:center;padding:9px 12px;border-top:1px solid var(--border);font-weight:600;color:var(--accent)">{{ row.pro }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Invoices (placeholder) -->
+<div class="card" style="padding:22px;max-width:720px;margin:0 auto 40px">
+  <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1rem;margin-bottom:14px">Billing history</h3>
+  <div class="invoice-row">
+    <span>No invoices yet</span>
+    <span style="color:var(--text-muted);font-size:.78rem">Stripe billing invoices will appear here</span>
+  </div>
+  <p style="font-size:.74rem;color:var(--text-muted);margin-top:12px">
+    Full Stripe checkout &amp; invoice management is wired up in production with <code>STRIPE_SECRET_KEY</code>.
+  </p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadPlan() {
+  const res  = await fetch('{% url "billing:current_plan" %}');
+  const data = await res.json();
+  if (!data.ok) return;
+  const s = data.subscription;
+
+  document.getElementById('current-plan-name').textContent = s.plan_name;
+
+  const statusEl = document.getElementById('current-plan-status');
+  statusEl.textContent = s.status.charAt(0).toUpperCase() + s.status.slice(1);
+  statusEl.style.cssText = s.status === 'active'
+    ? 'background:rgba(20,216,164,.12);color:#0fae87'
+    : 'background:rgba(224,57,92,.1);color:var(--danger)';
+
+  // Actions
+  const actEl = document.getElementById('current-plan-actions');
+  if (s.plan_code === 'free') {
+    actEl.innerHTML = `<button class="btn-gen" style="width:auto;padding:9px 20px" onclick="upgradePlan('pro')"><span class="btn-label">Upgrade to Pro →</span><div class="spinner"></div></button>`;
+  } else {
+    const end = s.period_end ? ` · Renews ${s.period_end}` : '';
+    actEl.innerHTML = `<span style="font-size:.82rem;color:var(--text-muted)">Pro plan${end}</span>`;
+  }
+
+  // Usage
+  if (s.max_qr > 0) {
+    const section = document.getElementById('usage-section');
+    section.style.display = 'block';
+    const pct  = Math.min(Math.round(s.qr_this_month / s.max_qr * 100), 100);
+    const bar  = document.getElementById('usage-bar');
+    const lbl  = document.getElementById('usage-label');
+    const hint = document.getElementById('usage-hint');
+    bar.style.width = pct + '%';
+    bar.className   = 'usage-bar-fill' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '');
+    lbl.textContent = `${s.qr_this_month} / ${s.max_qr}`;
+    hint.textContent = pct >= 90
+      ? '⚠ You\'re close to your limit — upgrade for unlimited codes.'
+      : `${s.max_qr - s.qr_this_month} codes remaining this month.`;
+  }
+}
+
+async function upgradePlan(plan) {
+  const btns = document.querySelectorAll('.btn-gen');
+  btns.forEach(b => { b.classList.add('loading'); b.disabled = true; });
+
+  const res  = await fetch('{% url "billing:upgrade" %}', {
+    method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+    body: JSON.stringify({plan}),
+  });
+  const data = await res.json();
+
+  btns.forEach(b => { b.classList.remove('loading'); b.disabled = false; });
+
+  if (data.ok) {
+    window.showToast(data.message, 'ok');
+    setTimeout(() => location.reload(), 1200);
+  } else {
+    window.showToast(data.error, 'err');
+  }
+}
+
+async function cancelPlan() {
+  if (!confirm('Downgrade to Free? You\'ll lose Pro features at the end of your billing period.')) return;
+  const res  = await fetch('{% url "billing:cancel" %}', {
+    method:'POST', headers:{'X-CSRFToken':csrfToken()},
+  });
+  const data = await res.json();
+  if (data.ok) { window.showToast(data.message, 'ok'); setTimeout(() => location.reload(), 1200); }
+  else window.showToast(data.error, 'err');
+}
+
+function csrfToken() {
+  return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||'';
+}
+
+loadPlan();
+</script>
+{% endblock %}

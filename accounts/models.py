@@ -40,7 +40,7 @@ class AuditLogEntry(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='audit_entries')
     team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, null=True, blank=True, related_name='audit_entries')
     action = models.CharField(max_length=120)
-    metadata = models.TextField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

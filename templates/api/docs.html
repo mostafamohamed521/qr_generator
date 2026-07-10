@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}API Docs{% endblock %}
+{% block nav_api %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.api-layout { display:grid; grid-template-columns:220px 1fr; gap:24px; }
+@media(max-width:900px){ .api-layout{grid-template-columns:1fr} }
+.api-nav { position:sticky; top:80px; align-self:start; }
+.api-nav a { display:block; padding:7px 12px; border-radius:8px; text-decoration:none; font-size:.83rem; font-weight:500; color:var(--text-muted); margin-bottom:3px; }
+.api-nav a:hover,.api-nav a.active { background:var(--accent-soft); color:var(--accent); }
+.api-nav .nav-section { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin:14px 0 4px 12px; }
+.endpoint-card { border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:20px; overflow:hidden; }
+.endpoint-header { display:flex; align-items:center; gap:10px; padding:14px 18px; cursor:pointer; background:var(--surface); }
+.endpoint-header:hover { background:var(--hover-soft); }
+.method { padding:3px 8px; border-radius:6px; font-size:.72rem; font-weight:800; flex-shrink:0; }
+.method-get  { background:rgba(20,216,164,.15); color:#0fae87; }
+.method-post { background:rgba(109,77,251,.12); color:var(--accent); }
+.endpoint-path { font-family:'Space Grotesk',monospace; font-weight:600; font-size:.88rem; }
+.endpoint-desc { color:var(--text-muted); font-size:.78rem; margin-left:auto; }
+.endpoint-body { padding:18px; background:var(--field-bg); display:none; border-top:1px solid var(--border); }
+.endpoint-body.open { display:block; }
+.code-block { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px 16px; font-family:monospace; font-size:.8rem; white-space:pre-wrap; color:var(--text); overflow-x:auto; margin:10px 0; }
+.try-btn { padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface-solid); color:var(--text); font-size:.78rem; font-weight:600; cursor:pointer; margin-top:10px; }
+.try-btn:hover { border-color:var(--accent); color:var(--accent); }
+.try-result { margin-top:10px; display:none; }
+.try-result.show { display:block; }
+.param-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:8px; font-size:.82rem; flex-wrap:wrap; }
+.param-name { font-family:monospace; font-weight:600; color:var(--accent); min-width:100px; }
+.param-type { color:var(--text-muted); min-width:60px; }
+.param-desc { flex:1; color:var(--text); }
+.key-card { display:flex; align-items:center; gap:10px; padding:12px 16px; border:1px solid var(--border); border-radius:12px; margin-bottom:10px; font-size:.83rem; }
+.key-val { font-family:monospace; font-size:.75rem; color:var(--accent); background:var(--accent-soft); padding:3px 8px; border-radius:6px; cursor:pointer; }
+.key-val:hover { opacity:.8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:28px">
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Developer API</h1>
+  <p style="color:var(--text-muted)">Integrate QR Forge into your apps. Base URL: <code style="background:var(--accent-soft);padding:2px 8px;border-radius:6px;font-size:.83rem">/api/v1/</code></p>
+</div>
+
+<div class="api-layout">
+
+  <!-- Sidebar nav -->
+  <div class="api-nav">
+    <div class="nav-section">Authentication</div>
+    <a href="#auth" onclick="scrollTo('auth')">API Keys</a>
+    <div class="nav-section">Endpoints</div>
+    <a href="#me" onclick="scrollTo('me')">Account</a>
+    <a href="#generate" onclick="scrollTo('generate')">Generate QR</a>
+    <a href="#list" onclick="scrollTo('list')">List QRs</a>
+    <a href="#get" onclick="scrollTo('get')">Get QR</a>
+    <a href="#delete" onclick="scrollTo('delete')">Delete QR</a>
+    <div class="nav-section">Dynamic</div>
+    <a href="#dyn-list" onclick="scrollTo('dyn-list')">List Links</a>
+    <a href="#dyn-create" onclick="scrollTo('dyn-create')">Create Link</a>
+    <a href="#dyn-update" onclick="scrollTo('dyn-update')">Update Link</a>
+    <div class="nav-section">Webhooks</div>
+    <a href="#webhooks" onclick="scrollTo('webhooks')">Webhooks</a>
+  </div>
+
+  <div>
+    <!-- API Keys section -->
+    <div id="auth" class="card" style="padding:22px;margin-bottom:20px">
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:4px">API Keys</h2>
+      <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px">Pass your key as: <code>Authorization: Bearer &lt;key&gt;</code></p>
+
+      {% if keys %}
+        {% for key in keys %}
+        <div class="key-card">
+          <div style="flex:1">
+            <div style="font-weight:600">{{ key.name }}</div>
+            <div class="key-val" onclick="navigator.clipboard.writeText('{{ key.key }}').then(()=>window.showToast('Copied!','ok'))" title="Click to copy">
+              {{ key.key|slice:":18" }}…
+            </div>
+          </div>
+          <div style="color:var(--text-muted);font-size:.74rem">Created {{ key.created_at|date:"d M Y" }}</div>
+          <button class="act-btn danger" style="padding:5px 10px;font-size:.72rem;color:var(--danger)" onclick="revokeKey({{ key.id }}, this)">Revoke</button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:14px">You have no API keys yet.</p>
+      {% endif %}
+
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <input type="text" id="new-key-name" class="fi" placeholder="Key name (e.g. My App)" style="max-width:240px">
+        <button class="act-btn" onclick="createKey()" style="padding:9px 14px">+ Create Key</button>
+      </div>
+      <div id="key-error" style="color:var(--danger);font-size:.76rem;margin-top:6px;display:none"></div>
+    </div>
+
+    <!-- Endpoint: /me -->
+    <div id="me">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/me/</span>
+          <span class="endpoint-desc">Get account info</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <p style="color:var(--text-muted);font-size:.84rem;margin-bottom:10px">Returns info about the authenticated key owner.</p>
+          <div class="code-block">curl /api/v1/me/ -H "Authorization: Bearer qrf_your_key"</div>
+          <div class="code-block">{"ok":true,"user":{"id":1,"email":"you@example.com","qr_total":42,"dyn_total":3}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Endpoint: /generate -->
+    <div id="generate">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/generate/</span>
+          <span class="endpoint-desc">Generate a QR code image</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <div style="font-weight:700;font-size:.82rem;margin-bottom:8px">Request Body (JSON)</div>
+          <div class="param-row"><span class="param-name">type</span><span class="param-type">string</span><span class="param-desc">Required. One of: url, text, contact, wifi, sms, email, phone, location</span></div>
+          <div class="param-row"><span class="param-name">url</span><span class="param-type">string</span><span class="param-desc">URL to encode (when type=url)</span></div>
+          <div class="param-row"><span class="param-name">text</span><span class="param-type">string</span><span class="param-desc">Text content (when type=text)</span></div>
+          <div class="param-row"><span class="param-name">qr_color</span><span class="param-type">string</span><span class="param-desc">Hex color, default #000000</span></div>
+          <div class="param-row"><span class="param-name">bg_color</span><span class="param-type">string</span><span class="param-desc">Hex or "transparent", default #ffffff</span></div>
+          <div class="param-row"><span class="param-name">size</span><span class="param-type">integer</span><span class="param-desc">100–1000 px, default 300</span></div>
+          <div class="param-row"><span class="param-name">style</span><span class="param-type">string</span><span class="param-desc">"square" or "rounded"</span></div>
+          <div class="param-row"><span class="param-name">label</span><span class="param-type">string</span><span class="param-desc">Optional label saved in history</span></div>
+          <div class="code-block">curl -X POST /api/v1/generate/ \
+  -H "Authorization: Bearer qrf_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"url","url":"https://example.com","size":300}'</div>
+          <div style="font-weight:700;font-size:.82rem;margin-bottom:6px;margin-top:14px">Response</div>
+          <div class="code-block">{ "ok": true, "id": 42, "content": "https://example.com",
+  "image": "data:image/png;base64,iVBOR..." }</div>
+          <button class="try-btn" onclick="tryGenerate(this)">▶ Try it</button>
+          <div class="try-result" id="try-generate-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Endpoint: GET /qrcodes/ -->
+    <div id="list">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/qrcodes/</span>
+          <span class="endpoint-desc">List QR codes</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <div class="param-row"><span class="param-name">page</span><span class="param-type">integer</span><span class="param-desc">Page number, default 1</span></div>
+          <div class="param-row"><span class="param-name">per_page</span><span class="param-type">integer</span><span class="param-desc">Items per page, max 50, default 20</span></div>
+          <div class="param-row"><span class="param-name">q</span><span class="param-type">string</span><span class="param-desc">Search in label/content</span></div>
+          <div class="param-row"><span class="param-name">type</span><span class="param-type">string</span><span class="param-desc">Filter by QR type</span></div>
+          <div class="code-block">curl /api/v1/qrcodes/?page=1&type=url \
+  -H "Authorization: Bearer qrf_your_key"</div>
+          <div class="code-block">{ "ok": true, "total": 42, "page": 1, "pages": 3,
+  "items": [{ "id": 1, "type": "url", "label": "...", ... }] }</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GET /qrcodes/<id>/ -->
+    <div id="get">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/qrcodes/&lt;id&gt;/</span>
+          <span class="endpoint-desc">Get single QR code</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-block">curl /api/v1/qrcodes/42/ -H "Authorization: Bearer qrf_your_key"</div>
+          <div class="code-block">{ "ok": true, "item": { "id": 42, "type": "url", "image": "data:...", ... } }</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POST /qrcodes/<id>/delete/ -->
+    <div id="delete">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/qrcodes/&lt;id&gt;/delete/</span>
+          <span class="endpoint-desc">Delete a QR code</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-block">curl -X POST /api/v1/qrcodes/42/delete/ -H "Authorization: Bearer qrf_your_key"</div>
+          <div class="code-block">{ "ok": true }</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic links -->
+    <div id="dyn-list">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/dynamic/</span>
+          <span class="endpoint-desc">List dynamic links</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-block">curl /api/v1/dynamic/ -H "Authorization: Bearer qrf_your_key"</div>
+          <div class="code-block">{ "ok": true, "links": [{ "id": 1, "short_code": "jHqq2jtc", "target_url": "...", "scan_count": 5 }] }</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="dyn-create">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/dynamic/create/</span>
+          <span class="endpoint-desc">Create dynamic link</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-block">curl -X POST /api/v1/dynamic/create/ \
+  -H "Authorization: Bearer qrf_your_key" \
+  -d '{"target_url":"https://example.com","label":"My Campaign"}'</div>
+          <div class="code-block">{ "ok": true, "link": { "id": 1, "short_code": "abc12345", "redirect_url": "https://yoursite.com/r/abc12345/" } }</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="dyn-update">
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggle(this)">
+          <span class="method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/dynamic/&lt;id&gt;/update/</span>
+          <span class="endpoint-desc">Update destination URL</span>
+          <svg style="margin-left:8px;flex-shrink:0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-block">curl -X POST /api/v1/dynamic/1/update/ \
+  -H "Authorization: Bearer qrf_your_key" \
+  -d '{"target_url":"https://new-destination.com","is_active":true}'</div>
+          <div class="code-block">{ "ok": true, "target_url": "https://new-destination.com", "is_active": true }</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Webhooks section -->
+    <div id="webhooks" class="card" style="padding:22px;margin-bottom:20px">
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:4px">Webhooks</h2>
+      <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:14px">Get notified when a dynamic QR code is scanned. We POST to your URL with an HMAC-signed payload.</p>
+      <div class="code-block">// Webhook payload (POST to your endpoint)
+{
+  "event":      "qr.scanned",
+  "short_code": "jHqq2jtc",
+  "target_url": "https://example.com",
+  "scanned_at": "2026-07-04T12:34:56Z"
+}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <input type="url" id="new-wh-url" class="fi" placeholder="https://your-server.com/webhook" style="flex:1;min-width:200px">
+        <button class="act-btn" onclick="createWebhook()" style="padding:9px 14px">+ Add Webhook</button>
+      </div>
+      <div id="wh-result" style="font-size:.76rem;margin-top:8px;color:var(--accent)"></div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggle(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function scrollTo(id) {
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function csrfToken() {
+  return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||'';
+}
+
+async function createKey() {
+  const name  = document.getElementById('new-key-name').value.trim() || 'My API Key';
+  const errEl = document.getElementById('key-error');
+  errEl.style.display = 'none';
+  const res  = await fetch('{% url "api:create_key" %}', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+    body: JSON.stringify({name}),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    window.showToast('API Key created! Copy it now — it won\'t be shown again.', 'ok');
+    setTimeout(() => location.reload(), 1500);
+  } else {
+    errEl.textContent = data.error;
+    errEl.style.display = 'block';
+  }
+}
+
+async function revokeKey(id, btn) {
+  if (!confirm('Revoke this API key? Any apps using it will stop working.')) return;
+  const res  = await fetch(`/api/v1/keys/${id}/revoke/`, {
+    method:'POST', headers:{'X-CSRFToken':csrfToken()},
+  });
+  const data = await res.json();
+  if (data.ok) { btn.closest('.key-card').remove(); window.showToast('Key revoked','ok'); }
+}
+
+async function tryGenerate(btn) {
+  const resultEl = document.getElementById('try-generate-result');
+  resultEl.innerHTML = '<div style="color:var(--text-muted);font-size:.8rem">Generating…</div>';
+  resultEl.classList.add('show');
+
+  // pick first key
+  const keyEl = document.querySelector('.key-val');
+  if (!keyEl) { resultEl.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Create an API key first</div>'; return; }
+  const fullKey = keyEl.onclick.toString().match(/'([^']+)'/)?.[1];
+  // fallback: we already have session so can hit it directly
+  const res = await fetch('/api/v1/generate/', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+    body: JSON.stringify({type:'url', url:'https://example.com', size:200}),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    resultEl.innerHTML = `<img src="${data.image}" style="width:100px;height:100px;border-radius:8px;border:1px solid var(--border);margin-top:8px"><div style="font-size:.76rem;color:var(--text-muted);margin-top:4px">ID: ${data.id}</div>`;
+  } else {
+    resultEl.innerHTML = `<div style="color:var(--danger);font-size:.8rem">${data.error || JSON.stringify(data)}</div>`;
+  }
+}
+
+async function createWebhook() {
+  const url    = document.getElementById('new-wh-url').value.trim();
+  const resEl  = document.getElementById('wh-result');
+  if (!url) { resEl.style.color='var(--danger)'; resEl.textContent='Enter a target URL'; return; }
+  const res  = await fetch('{% url "api:create_webhook" %}', {
+    method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+    body: JSON.stringify({target_url: url}),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    resEl.style.color='var(--accent)';
+    resEl.textContent = `✓ Webhook created. Secret: ${data.webhook.secret}`;
+    document.getElementById('new-wh-url').value = '';
+  } else {
+    resEl.style.color='var(--danger)';
+    resEl.textContent = data.error;
+  }
+}
+</script>
+{% endblock %}
