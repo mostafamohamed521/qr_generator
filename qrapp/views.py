@@ -51,22 +51,35 @@ def _parse_size(raw):
 
 
 def _build_content(qr_type, d, request_post):
+    """
+    Build the encoded string for a QR code from a dict of fields.
+    Uses .get() everywhere so missing/malformed input (e.g. from the public
+    API, which skips Django form validation) returns empty content instead
+    of raising KeyError — callers treat empty content as a validation error.
+    """
     if qr_type == 'url':
-        return build_url(d['url'])
+        url = d.get('url', '').strip()
+        return build_url(url) if url else ''
     elif qr_type == 'text':
-        return d['text']
+        return d.get('text', '').strip()
     elif qr_type == 'contact':
-        return build_vcard(d)
+        return build_vcard(d) if (d.get('first_name') or d.get('last_name')) else ''
     elif qr_type == 'wifi':
-        return build_wifi(d['ssid'], d.get('password', ''), d['encryption'])
+        ssid = d.get('ssid', '').strip()
+        return build_wifi(ssid, d.get('password', ''), d.get('encryption', 'WPA')) if ssid else ''
     elif qr_type == 'sms':
-        return build_sms(d['phone'], d['message'])
+        phone = d.get('phone', '').strip()
+        return build_sms(phone, d.get('message', '')) if phone else ''
     elif qr_type == 'email':
-        return build_email(d['email'], d.get('subject', ''), d.get('body', ''))
+        email = d.get('email', '').strip()
+        return build_email(email, d.get('subject', ''), d.get('body', '')) if email else ''
     elif qr_type == 'phone':
-        return build_phone(d['phone'])
+        phone = d.get('phone', '').strip()
+        return build_phone(phone) if phone else ''
     elif qr_type == 'location':
-        return build_location(d['latitude'], d['longitude'])
+        lat, lng = d.get('latitude', ''), d.get('longitude', '')
+        lat, lng = str(lat).strip(), str(lng).strip()
+        return build_location(lat, lng) if (lat and lng) else ''
     return ''
 
 
@@ -347,6 +360,15 @@ def dynamic_redirect(request, short_code):
     )
     from django.db.models import F
     DynamicLink.objects.filter(pk=link.pk).update(scan_count=F('scan_count') + 1)
+
+    # Fire webhook (non-blocking — runs in a background thread)
+    from api.webhooks import fire_event
+    fire_event('qr.scanned', {
+        'short_code': link.short_code,
+        'target_url': link.target_url,
+        'label':      link.label,
+        'scanned_at': timezone.now().isoformat(),
+    })
 
     from django.shortcuts import redirect as dj_redirect
     return dj_redirect(link.target_url, permanent=False)

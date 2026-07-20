@@ -117,15 +117,15 @@ class ViewTests(TestCase):
 
     # index
     def test_index_ok(self):
-        self.assertEqual(self.c.get('/').status_code, 200)
+        self.assertEqual(self.c.get('/app/').status_code, 200)
 
     # generate – method guard
     def test_generate_get_405(self):
-        self.assertEqual(self.c.get('/api/generate/').status_code, 405)
+        self.assertEqual(self.c.get('/app/api/generate/').status_code, 405)
 
     # generate – all 8 types
     def _gen(self, payload):
-        return self.c.post('/api/generate/', payload).json()
+        return self.c.post('/app/api/generate/', payload).json()
 
     def test_type_url(self):
         d = self._gen({'type': 'url', 'url': 'https://example.com'})
@@ -200,36 +200,128 @@ class ViewTests(TestCase):
 
     # history
     def test_history_empty(self):
-        d = self.c.get('/api/history/').json()
+        d = self.c.get('/app/api/history/').json()
         self.assertTrue(d['ok'])
         self.assertEqual(d['items'], [])
 
     def test_history_has_fields(self):
         self._gen({'type': 'url', 'url': 'https://example.com', 'label': 'L'})
-        d = self.c.get('/api/history/').json()
+        d = self.c.get('/app/api/history/').json()
         self.assertEqual(len(d['items']), 1)
         item = d['items'][0]
         for key in ('id','qr_type','type_label','label','created_at','image'):
             self.assertIn(key, item, f'Missing key: {key}')
 
     def test_history_get_only(self):
-        self.assertEqual(self.c.post('/api/history/').status_code, 405)
+        self.assertEqual(self.c.post('/app/api/history/').status_code, 405)
 
     # delete
     def test_delete(self):
         self._gen({'type': 'text', 'text': 'x'})
         pk = QRCode.objects.get().pk
-        d  = self.c.post(f'/api/delete/{pk}/').json()
+        d  = self.c.post(f'/app/api/delete/{pk}/').json()
         self.assertTrue(d['ok'])
         self.assertEqual(QRCode.objects.count(), 0)
 
     def test_delete_not_found(self):
-        d = self.c.post('/api/delete/99999/').json()
+        d = self.c.post('/app/api/delete/99999/').json()
         self.assertFalse(d['ok'])
 
     # clear
     def test_clear(self):
         self._gen({'type': 'text', 'text': 'a'})
         self._gen({'type': 'text', 'text': 'b'})
-        self.c.post('/api/clear/')
+        self.c.post('/app/api/clear/')
         self.assertEqual(QRCode.objects.count(), 0)
+
+
+# ── Sprint 4: Dynamic QR tests ────────────────────────────────────────────────
+from .models import DynamicLink
+
+
+class DynamicQRTests(TestCase):
+
+    def setUp(self):
+        self.c = Client()
+
+    def test_create_dynamic_link(self):
+        d = self.c.post('/app/api/dynamic/create/',
+            data='{"target_url": "https://example.com", "label": "Test"}',
+            content_type='application/json').json()
+        self.assertTrue(d['ok'])
+        self.assertIn('short_code', d['link'])
+        self.assertTrue(d['link']['redirect_url'].endswith(d['link']['short_code'] + '/'))
+
+    def test_create_rejects_invalid_url(self):
+        d = self.c.post('/app/api/dynamic/create/',
+            data='{"target_url": "not-a-url"}', content_type='application/json').json()
+        self.assertFalse(d['ok'])
+
+    def test_redirect_increments_scan_count(self):
+        link = DynamicLink.objects.create(target_url='https://example.com')
+        self.assertEqual(link.scan_count, 0)
+        r = self.c.get(f'/r/{link.short_code}/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.url, 'https://example.com')
+        link.refresh_from_db()
+        self.assertEqual(link.scan_count, 1)
+
+    def test_redirect_inactive_link_404s(self):
+        link = DynamicLink.objects.create(target_url='https://example.com', is_active=False)
+        r = self.c.get(f'/r/{link.short_code}/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_redirect_unknown_code_404s(self):
+        r = self.c.get('/r/doesnotexist/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_update_changes_target(self):
+        link = DynamicLink.objects.create(target_url='https://old.com')
+        d = self.c.post(f'/app/api/dynamic/{link.pk}/update/',
+            data='{"target_url": "https://new.com"}', content_type='application/json').json()
+        self.assertTrue(d['ok'])
+        link.refresh_from_db()
+        self.assertEqual(link.target_url, 'https://new.com')
+
+    def test_delete_link(self):
+        link = DynamicLink.objects.create(target_url='https://example.com')
+        d = self.c.post(f'/app/api/dynamic/{link.pk}/delete/').json()
+        self.assertTrue(d['ok'])
+        self.assertEqual(DynamicLink.objects.count(), 0)
+
+    def test_list_links(self):
+        DynamicLink.objects.create(target_url='https://a.com')
+        DynamicLink.objects.create(target_url='https://b.com')
+        d = self.c.get('/app/api/dynamic/').json()
+        self.assertTrue(d['ok'])
+        self.assertEqual(len(d['links']), 2)
+
+
+# ── Sprint 3: History search/filter/pagination ────────────────────────────────
+class HistorySearchTests(TestCase):
+
+    def setUp(self):
+        self.c = Client()
+        QRCode.objects.create(qr_type='url', label='Google', content='https://google.com')
+        QRCode.objects.create(qr_type='text', label='Hello', content='Hello world')
+
+    def test_search_by_label(self):
+        d = self.c.get('/app/api/history/?q=Google').json()
+        self.assertEqual(d['total'], 1)
+
+    def test_filter_by_type(self):
+        d = self.c.get('/app/api/history/?type=text').json()
+        self.assertEqual(d['total'], 1)
+        self.assertEqual(d['items'][0]['qr_type'], 'text')
+
+    def test_pagination_page_size(self):
+        for i in range(15):
+            QRCode.objects.create(qr_type='text', content=f'item {i}')
+        d = self.c.get('/app/api/history/?page=1').json()
+        self.assertEqual(len(d['items']), 12)  # per_page = 12
+        self.assertGreaterEqual(d['pages'], 2)
+
+    def test_csv_export(self):
+        r = self.c.get('/app/api/export-csv/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('text/csv', r['Content-Type'])

@@ -46,7 +46,7 @@
         </div>
         <div class="auth-row-between">
           <label class="remember-me"><input type="checkbox" name="remember"> {% trans "Remember me" %}</label>
-          <a href="#">{% trans "Forgot password?" %}</a>
+          <a href="{% url 'accounts:forgot_password' %}">{% trans "Forgot password?" %}</a>
         </div>
         <button type="submit" class="btn-primary" style="width:100%">{% trans "Log in" %}</button>
       </form>

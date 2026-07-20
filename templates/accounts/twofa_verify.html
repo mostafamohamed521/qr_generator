@@ -1,0 +1,21 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "Verify 2FA" %}{% endblock %}
+{% block content %}
+<div style="max-width:400px;margin:60px auto">
+  <div class="feature-card" style="text-align:center">
+    <div style="font-size:2.2rem;margin-bottom:10px">🔐</div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.3rem;margin-bottom:6px">{% trans "Two-factor verification" %}</h1>
+    <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:20px">{% trans "Enter the 6-digit code from your authenticator app." %}</p>
+
+    {% if error %}<div class="field-error" style="display:block;margin-bottom:14px">{{ error }}</div>{% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="text" name="code" class="fi" placeholder="123456" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" autofocus required style="text-align:center;letter-spacing:.3em;font-size:1.2rem;margin-bottom:16px">
+      <button type="submit" class="btn-primary" style="width:100%">{% trans "Verify" %}</button>
+    </form>
+    <a href="{% url 'accounts:login' %}" style="display:block;margin-top:16px;font-size:.82rem;color:var(--text-muted)">{% trans "Back to login" %}</a>
+  </div>
+</div>
+{% endblock %}

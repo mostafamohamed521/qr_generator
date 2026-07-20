@@ -1,287 +1,123 @@
-# 🚀 QR Forge — Production Deployment Guide
+# QR Forge — Deployment Guide
 
-This guide explains how to deploy **QR Forge** in a production environment using **Gunicorn**, **Nginx**, **WhiteNoise**, and optionally **PostgreSQL**.
+## Running the test suite
 
----
-
-# Requirements
-
-* Python 3.14+
-* pip
-* Git
-* Ubuntu 22.04+
-* Nginx
-* Gunicorn
-* (Optional) PostgreSQL
-* (Recommended) Redis
-
----
-
-# 1. Clone the Repository
+Before every deploy, run the full automated test suite:
 
 ```bash
-git clone https://github.com/yourusername/QR-Forge.git
-
-cd QR-Forge
+python manage.py test
 ```
 
----
+128 tests cover authentication, password reset, email verification, 2FA,
+QR generation (all 8 types), Dynamic QR + redirects, webhooks (real HTTP
+delivery + HMAC signature verification), teams/permissions, billing plans,
+and the public REST API. All should pass (`OK`) — if anything fails, do not
+deploy until it's fixed.
 
-# 2. Create Virtual Environment
+Run a single app's tests during development:
+```bash
+python manage.py test accounts -v 2   # auth, 2FA, password reset, email
+python manage.py test qrapp -v 2      # generator, history, dynamic QR
+python manage.py test teams -v 2      # teams, invites, roles, audit log
+python manage.py test billing -v 2    # plans, upgrade/downgrade
+python manage.py test api -v 2        # REST API, webhooks
+```
+
+## Environment Variables
 
 ```bash
-python3 -m venv venv
-```
-
-Activate it:
-
-```bash
-source venv/bin/activate
-```
-
----
-
-# 3. Install Dependencies
-
-```bash
-pip install --upgrade pip
-
-pip install -r requirements.txt
-```
-
----
-
-# 4. Environment Variables
-
-Create a `.env` file.
-
-Example:
-
-```env
-DJANGO_SECRET_KEY=your-super-secret-key
-
-DJANGO_DEBUG=False
-
+DJANGO_SECRET_KEY=<generate with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())">
+DJANGO_DEBUG=false
 DJANGO_ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 
-DJANGO_CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-
-DATABASE_URL=sqlite:///db.sqlite3
+# Email (optional — defaults to console backend if unset, which just logs emails)
+DJANGO_EMAIL_HOST=smtp.sendgrid.net
+DJANGO_EMAIL_PORT=587
+DJANGO_EMAIL_HOST_USER=apikey
+DJANGO_EMAIL_HOST_PASSWORD=<your-provider-api-key>
+DJANGO_EMAIL_USE_TLS=true
+DJANGO_DEFAULT_FROM_EMAIL="QR Forge <noreply@yourdomain.com>"
 ```
 
-For PostgreSQL:
+Once `DJANGO_EMAIL_HOST` is set, password reset, email verification, and team invite
+emails switch from the console backend to real SMTP automatically — no code changes needed.
+Works with any SMTP provider (SendGrid, Mailgun, Amazon SES, Postmark, Gmail SMTP, etc).
 
-```env
-DATABASE_URL=postgresql://username:password@localhost/qrforge
-```
+## Production Setup (Ubuntu/Debian)
 
----
-
-# 5. Apply Database Migrations
+System dependency required for Arabic translations: `sudo apt-get install gettext`
 
 ```bash
-python manage.py migrate
-```
+# 1. Install dependencies
+pip install -r requirements.txt
+pip install gunicorn whitenoise
 
----
-
-# 6. Create Superuser
-
-```bash
-python manage.py createsuperuser
-```
-
----
-
-# 7. Collect Static Files
-
-```bash
+# 2. Collect static files
 python manage.py collectstatic --noinput
-```
 
----
+# 2b. Compile translation catalogs (Arabic UI won't show translated text without this)
+python manage.py compilemessages
 
-# 8. Verify Deployment Settings
+# 3. Run migrations
+python manage.py migrate
 
-```bash
-python manage.py check --deploy
-```
+# 4. Create superuser
+python manage.py createsuperuser
 
-Resolve all reported warnings before going live.
-
----
-
-# 9. Run with Gunicorn
-
-```bash
+# 5. Start with Gunicorn
 gunicorn qr_site.wsgi:application \
-    --bind 0.0.0.0:8000 \
-    --workers 4 \
-    --timeout 60
+  --bind 0.0.0.0:8000 \
+  --workers 4 \
+  --timeout 60
 ```
 
----
-
-# 10. Configure Nginx
-
-Example:
+## Nginx Config (snippet)
 
 ```nginx
 server {
-
-    listen 80;
-
+    listen 443 ssl;
     server_name yourdomain.com;
 
     location /static/ {
-        alias /var/www/qrforge/staticfiles/;
+        alias /path/to/qr/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
     }
 
     location /media/ {
-        alias /var/www/qrforge/media/;
+        alias /path/to/qr/media/;
     }
 
     location / {
-
         proxy_pass http://127.0.0.1:8000;
-
         proxy_set_header Host $host;
-
-        proxy_set_header X-Forwarded-Proto $scheme;
-
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
-
 }
 ```
 
-Reload:
+## Production requirements.txt additions
+
+```
+gunicorn>=21.0
+whitenoise>=6.6
+psycopg2-binary>=2.9   # if using PostgreSQL
+```
+
+## Database (Optional: switch to PostgreSQL)
 
 ```bash
-sudo nginx -t
-
-sudo systemctl restart nginx
+DATABASES = {
+    'default': dj_database_url.config(
+        default='postgresql://user:pass@localhost/qrforge'
+    )
+}
 ```
 
----
+## Rate Limiting (Production)
 
-# 11. HTTPS
-
-Install SSL using Certbot.
-
+For production, replace `qr_site/middleware.py` with django-ratelimit + Redis:
 ```bash
-sudo certbot --nginx
+pip install django-ratelimit django-redis
 ```
-
----
-
-# 12. Production Security Checklist
-
-* DEBUG=False
-* Strong SECRET_KEY
-* HTTPS Enabled
-* HSTS Enabled
-* Secure Cookies Enabled
-* WhiteNoise Enabled
-* Environment Variables Used
-* ALLOWED_HOSTS Configured
-* CSRF_TRUSTED_ORIGINS Configured
-* Rate Limiting Enabled
-* Logging Enabled
-
----
-
-# 13. Optional Improvements
-
-## PostgreSQL
-
-Replace SQLite with PostgreSQL for better scalability.
-
----
-
-## Redis
-
-Use Redis for:
-
-* Rate Limiting
-* Cache
-* Sessions
-
-Recommended packages:
-
-```bash
-pip install django-redis
-
-pip install django-ratelimit
-```
-
----
-
-## Docker
-
-Containerize the application using:
-
-* Docker
-* Docker Compose
-
----
-
-## CI/CD
-
-Recommended:
-
-* GitHub Actions
-* Render Deploy Hook
-* Railway
-* VPS Auto Deploy
-
----
-
-# Production Requirements
-
-```text
-gunicorn>=21.2
-
-whitenoise>=6.7
-
-python-dotenv>=1.0
-
-dj-database-url>=3.0
-
-psycopg2-binary>=2.9
-```
-
----
-
-# Deployment Targets
-
-QR Forge can be deployed on:
-
-* Render
-* Railway
-* DigitalOcean
-* AWS EC2
-* Azure
-* Google Cloud
-* Ubuntu VPS
-
----
-
-# Final Verification
-
-Run:
-
-```bash
-python manage.py check --deploy
-```
-
-Expected result:
-
-```
-System check identified no issues (0 silenced).
-```
-
-Congratulations! 🎉
-
-Your application is now production-ready.

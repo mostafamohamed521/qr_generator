@@ -1,0 +1,10 @@
+Hi,
+
+{{ inviter_name }} invited you to join "{{ team_name }}" on QR Forge as a {{ role }}.
+
+Accept the invitation here:
+{{ invite_url }}
+
+If you don't have a QR Forge account yet, you'll be asked to create one first.
+
+— The QR Forge Team

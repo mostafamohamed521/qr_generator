@@ -1,0 +1,42 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "Delete Account" %}{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:50px auto">
+  <div class="feature-card" style="border-color:var(--danger)">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:2.5rem;margin-bottom:10px">⚠️</div>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.3rem;color:var(--danger)">{% trans "Delete your account" %}</h1>
+    </div>
+
+    <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px">
+      {% trans "This permanently deletes your account, API keys, and any teams you solely own. This cannot be undone." %}
+    </p>
+
+    {% if blocking_teams %}
+      <div class="field-error" style="display:block;margin-bottom:14px">
+        {% trans "You still own team(s) with other members:" %}
+        <ul style="margin:8px 0 0 18px">
+          {% for t in blocking_teams %}<li>{{ t.name }}</li>{% endfor %}
+        </ul>
+        <p style="margin-top:8px">{% trans "Transfer ownership or remove these teams first, from the Teams page." %}</p>
+      </div>
+      <a href="{% url 'teams:teams' %}" class="btn-secondary" style="width:100%;text-decoration:none;justify-content:center;display:flex">{% trans "Go to Teams" %}</a>
+    {% else %}
+      {% if error %}<div class="field-error" style="display:block;margin-bottom:14px">{{ error }}</div>{% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <div class="auth-field">
+          <label>{% trans "Confirm your password to continue" %}</label>
+          <input type="password" name="password" class="fi" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-secondary" style="width:100%;color:var(--danger);border-color:var(--danger)" onclick="return confirm('{% trans "Are you absolutely sure? This is permanent." %}')">
+          {% trans "Permanently delete my account" %}
+        </button>
+      </form>
+    {% endif %}
+
+    <a href="{% url 'accounts:profile' %}" style="display:block;margin-top:16px;font-size:.82rem;color:var(--text-muted);text-align:center">{% trans "Cancel" %}</a>
+  </div>
+</div>
+{% endblock %}

@@ -8,13 +8,62 @@
 <div style="max-width:480px;margin:0 auto">
   <div class="feature-card" style="margin-bottom:16px">
     <h3>{% trans "Account" %}</h3>
-    <p>{% trans "Name" %}: {{ user.first_name }} {{ user.last_name }}</p>
-    <p>{% trans "Email" %}: {{ user.email }}</p>
-    <p>{% trans "Joined" %}: {{ user.date_joined|date:"M d, Y" }}</p>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div style="display:flex;align-items:center;gap:16px;margin:14px 0 18px">
+        <div style="position:relative">
+          {% if user.profile.avatar %}
+            <img src="{{ user.profile.avatar.url }}" alt="Avatar" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--border)">
+          {% else %}
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.4rem;font-family:'Space Grotesk',sans-serif">
+              {{ user.first_name|first|default:user.email|first|upper }}
+            </div>
+          {% endif %}
+        </div>
+        <div>
+          <label for="avatar-input" class="btn-secondary" style="cursor:pointer;padding:7px 14px;font-size:.8rem;display:inline-flex">{% trans "Change photo" %}</label>
+          <input type="file" id="avatar-input" name="avatar" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="this.form.submit()">
+          {% if user.profile.avatar %}
+            <button type="submit" formaction="{% url 'accounts:remove_avatar' %}" formnovalidate style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;margin-top:4px;display:block">{% trans "Remove photo" %}</button>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="auth-field">
+        <label>{% trans "Name" %}</label>
+        <input type="text" name="name" class="fi" value="{{ user.first_name }} {{ user.last_name }}" placeholder="{% trans 'Your name' %}">
+      </div>
+      <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:10px">{% trans "Email" %}: {{ user.email }}</p>
+      <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:14px">{% trans "Joined" %}: {{ user.date_joined|date:"M d, Y" }}</p>
+      <button type="submit" class="btn-primary" style="width:100%">{% trans "Save changes" %}</button>
+    </form>
   </div>
+
+  {% if not user.profile.is_email_verified %}
+  <div class="feature-card" style="margin-bottom:16px;border-color:var(--accent-3);background:rgba(255,148,102,.06)">
+    <h3 style="display:flex;align-items:center;gap:8px">⚠️ {% trans "Email not verified" %}</h3>
+    <p style="margin-bottom:10px">{% trans "Check your inbox for a verification link, or resend it." %}</p>
+    <a href="{% url 'accounts:resend_verification' %}" class="btn-secondary" style="width:100%;text-decoration:none;justify-content:center;display:flex">{% trans "Resend verification email" %}</a>
+  </div>
+  {% else %}
+  <div class="feature-card" style="margin-bottom:16px;border-color:var(--accent-2);background:rgba(20,216,164,.06)">
+    <p style="margin:0;display:flex;align-items:center;gap:8px">✅ {% trans "Email verified" %}</p>
+  </div>
+  {% endif %}
+
+  <div class="feature-card" style="margin-bottom:16px">
+    <h3 style="display:flex;align-items:center;gap:8px">🔐 {% trans "Two-factor authentication" %}</h3>
+    {% if user.profile.two_factor_enabled %}
+      <p style="margin-bottom:10px;color:var(--accent-2);font-weight:600">✓ {% trans "Enabled" %}</p>
+      <a href="{% url 'accounts:twofa_disable' %}" class="btn-secondary" style="width:100%;text-decoration:none;justify-content:center;display:flex;color:var(--danger)">{% trans "Disable 2FA" %}</a>
+    {% else %}
+      <p style="margin-bottom:10px;color:var(--text-muted)">{% trans "Add an extra layer of security to your account." %}</p>
+      <a href="{% url 'accounts:twofa_setup' %}" class="btn-primary" style="width:100%;text-decoration:none;justify-content:center;display:flex">{% trans "Enable 2FA" %}</a>
+    {% endif %}
+  </div>
+
   <a href="{% url 'accounts:logout' %}" class="btn-secondary" style="width:100%">{% trans "Log out" %}</a>
-  <p style="color:var(--text-muted);font-size:.78rem;margin-top:16px;text-align:center">
-    {% trans "Avatar upload, theme & language preference, and 2FA settings land in a later sprint." %}
-  </p>
+  <a href="{% url 'accounts:delete_account' %}" style="display:block;text-align:center;margin-top:16px;font-size:.8rem;color:var(--danger)">{% trans "Delete my account" %}</a>
 </div>
 {% endblock %}

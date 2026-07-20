@@ -65,7 +65,11 @@
 
     {% if user.is_authenticated %}
       <a href="{% url 'accounts:profile' %}" class="nav-link">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover">
+        {% else %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        {% endif %}
         {{ user.first_name|default:user.email }}
       </a>
       {% if user.is_staff %}
@@ -111,6 +115,14 @@
 <script>window.APP_BASE = "{% url 'qrapp:index' %}";</script>
 <script src="{% static 'js/app.js' %}"></script>
 {% block extra_js %}{% endblock %}
+
+{% if messages %}
+<script>
+{% for message in messages %}
+  toast("{{ message|escapejs }}", "{% if message.tags == 'error' %}err{% elif message.tags == 'success' %}ok{% else %}info{% endif %}");
+{% endfor %}
+</script>
+{% endif %}
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

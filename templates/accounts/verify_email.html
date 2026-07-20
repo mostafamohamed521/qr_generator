@@ -1,0 +1,19 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "Verify Email" %}{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:60px auto;text-align:center">
+  <div class="stat-card" style="padding:36px">
+    {% if success %}
+      <div style="font-size:3rem;margin-bottom:16px">✅</div>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.4rem;margin-bottom:8px">{% trans "Email verified!" %}</h1>
+      <p style="color:var(--text-muted);margin-bottom:20px">{% trans "Your email address has been confirmed." %}</p>
+    {% else %}
+      <div style="font-size:3rem;margin-bottom:16px">⚠️</div>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.4rem;margin-bottom:8px">{% trans "Link invalid" %}</h1>
+      <p style="color:var(--text-muted);margin-bottom:20px">{% trans "This verification link is invalid or has already been used." %}</p>
+    {% endif %}
+    <a href="{% url 'qrapp:index' %}" class="btn-primary" style="text-decoration:none;display:inline-flex;padding:11px 24px">{% trans "Go to Dashboard" %}</a>
+  </div>
+</div>
+{% endblock %}

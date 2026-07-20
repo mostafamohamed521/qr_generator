@@ -1,0 +1,7 @@
+Hi {{ user.first_name|default:user.email }},
+
+Welcome to QR Forge! Please verify your email address by clicking the link below:
+
+{{ verify_url }}
+
+— The QR Forge Team

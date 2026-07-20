@@ -115,6 +115,14 @@ document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
 });
 </script>
 {% block extra_js %}{% endblock %}
+
+{% if messages %}
+<script>
+{% for message in messages %}
+  toast("{{ message|escapejs }}", "{% if message.tags == 'error' %}err{% elif message.tags == 'success' %}ok{% else %}info{% endif %}");
+{% endfor %}
+</script>
+{% endif %}
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

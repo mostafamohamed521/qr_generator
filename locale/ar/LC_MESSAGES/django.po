@@ -1,0 +1,732 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-20 19:58+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#: templates/accounts/delete_account.html:3
+msgid "Delete Account"
+msgstr "حذف الحساب"
+
+#: templates/accounts/delete_account.html:9
+msgid "Delete your account"
+msgstr "حذف حسابك"
+
+#: templates/accounts/delete_account.html:13
+msgid ""
+"This permanently deletes your account, API keys, and any teams you solely "
+"own. This cannot be undone."
+msgstr ""
+"هذا سيحذف حسابك ومفاتيح الـ API الخاصة بك وأي فرق تملكها بمفردك بشكل نهائي. "
+"لا يمكن التراجع عن هذا الإجراء."
+
+#: templates/accounts/delete_account.html:18
+msgid "You still own team(s) with other members:"
+msgstr "ما زلت تملك فريق/فرق بها أعضاء آخرون:"
+
+#: templates/accounts/delete_account.html:22
+msgid "Transfer ownership or remove these teams first, from the Teams page."
+msgstr "انقل الملكية أو احذف هذه الفرق أولاً من صفحة الفرق."
+
+#: templates/accounts/delete_account.html:24
+msgid "Go to Teams"
+msgstr "الذهاب إلى الفرق"
+
+#: templates/accounts/delete_account.html:30
+msgid "Confirm your password to continue"
+msgstr "أكّد كلمة المرور للمتابعة"
+
+#: templates/accounts/delete_account.html:33
+msgid "Are you absolutely sure? This is permanent."
+msgstr "هل أنت متأكد تمامًا؟ هذا الإجراء نهائي."
+
+#: templates/accounts/delete_account.html:34
+msgid "Permanently delete my account"
+msgstr "حذف حسابي نهائيًا"
+
+#: templates/accounts/delete_account.html:39
+#: templates/accounts/twofa_disable.html:14
+#: templates/accounts/twofa_setup.html:25
+msgid "Cancel"
+msgstr "إلغاء"
+
+#: templates/accounts/forgot_password.html:3
+msgid "Forgot Password"
+msgstr "نسيت كلمة المرور"
+
+#: templates/accounts/forgot_password.html:13
+msgid "Forgot your password?"
+msgstr "نسيت كلمة المرور؟"
+
+#: templates/accounts/forgot_password.html:14
+msgid "No worries — we'll send you a reset link."
+msgstr "لا تقلق — سنرسل لك رابط إعادة تعيين."
+
+#: templates/accounts/forgot_password.html:20
+msgid "Check your email"
+msgstr "تحقق من بريدك الإلكتروني"
+
+#: templates/accounts/forgot_password.html:21
+msgid ""
+"If an account exists with that email, we've sent a password reset link."
+msgstr ""
+"إذا كان هناك حساب مرتبط بهذا البريد، فقد أرسلنا رابط إعادة تعيين كلمة "
+"المرور."
+
+#: templates/accounts/forgot_password.html:22
+#: templates/accounts/twofa_verify.html:18
+msgid "Back to login"
+msgstr "العودة لتسجيل الدخول"
+
+#: templates/accounts/forgot_password.html:24
+msgid "Reset your password"
+msgstr "إعادة تعيين كلمة المرور"
+
+#: templates/accounts/forgot_password.html:25
+msgid "Enter your email and we'll send you a reset link"
+msgstr "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين"
+
+#: templates/accounts/forgot_password.html:29 templates/accounts/login.html:34
+#: templates/accounts/profile.html:37 templates/accounts/register.html:35
+msgid "Email"
+msgstr "البريد الإلكتروني"
+
+#: templates/accounts/forgot_password.html:32
+msgid "Send reset link"
+msgstr "إرسال رابط إعادة التعيين"
+
+#: templates/accounts/forgot_password.html:34
+msgid "Remembered it?"
+msgstr "تذكرتها؟"
+
+#: templates/accounts/forgot_password.html:34 templates/accounts/login.html:3
+#: templates/accounts/login.html:24 templates/accounts/login.html:51
+#: templates/accounts/register.html:61 templates/base.html:91
+#: templates/base_public.html:49
+msgid "Log in"
+msgstr "تسجيل الدخول"
+
+#: templates/accounts/login.html:13
+msgid "Welcome back to QR Forge"
+msgstr "مرحبًا بعودتك إلى QR Forge"
+
+#: templates/accounts/login.html:14
+msgid "Log in to manage your codes, check analytics, and keep building."
+msgstr "سجّل الدخول لإدارة أكوادك ومتابعة التحليلات ومواصلة العمل."
+
+#: templates/accounts/login.html:16
+msgid "All your QR codes in one dashboard"
+msgstr "كل أكواد QR الخاصة بك في لوحة تحكم واحدة"
+
+#: templates/accounts/login.html:17
+msgid "Real-time scan analytics"
+msgstr "تحليلات مسح فورية"
+
+#: templates/accounts/login.html:18
+msgid "Team workspaces & API access"
+msgstr "مساحات عمل للفرق وواجهة برمجية (API)"
+
+#: templates/accounts/login.html:25
+msgid "Enter your details to access your account"
+msgstr "أدخل بياناتك للوصول إلى حسابك"
+
+#: templates/accounts/login.html:39 templates/accounts/register.html:40
+msgid "Password"
+msgstr "كلمة المرور"
+
+#: templates/accounts/login.html:42 templates/accounts/register.html:43
+msgid "Show password"
+msgstr "إظهار كلمة المرور"
+
+#: templates/accounts/login.html:48
+msgid "Remember me"
+msgstr "تذكرني"
+
+#: templates/accounts/login.html:49
+msgid "Forgot password?"
+msgstr "نسيت كلمة المرور؟"
+
+#: templates/accounts/login.html:54 templates/accounts/register.html:56
+msgid "or"
+msgstr "أو"
+
+#: templates/accounts/login.html:57 templates/accounts/register.html:59
+msgid "Continue with Google"
+msgstr "المتابعة باستخدام Google"
+
+#: templates/accounts/login.html:59
+msgid "Don't have an account?"
+msgstr "ليس لديك حساب؟"
+
+#: templates/accounts/login.html:59 templates/accounts/register.html:3
+msgid "Sign up"
+msgstr "إنشاء حساب"
+
+#: templates/accounts/profile.html:3
+msgid "Profile"
+msgstr "الملف الشخصي"
+
+#: templates/accounts/profile.html:6
+msgid "Your profile"
+msgstr "ملفك الشخصي"
+
+#: templates/accounts/profile.html:10
+msgid "Account"
+msgstr "الحساب"
+
+#: templates/accounts/profile.html:25
+msgid "Change photo"
+msgstr "تغيير الصورة"
+
+#: templates/accounts/profile.html:28
+msgid "Remove photo"
+msgstr "إزالة الصورة"
+
+#: templates/accounts/profile.html:34
+msgid "Name"
+msgstr "الاسم"
+
+#: templates/accounts/profile.html:35 templates/accounts/register.html:31
+msgid "Your name"
+msgstr "اسمك"
+
+#: templates/accounts/profile.html:38
+msgid "Joined"
+msgstr "تاريخ الانضمام"
+
+#: templates/accounts/profile.html:39
+msgid "Save changes"
+msgstr "حفظ التغييرات"
+
+#: templates/accounts/profile.html:45
+msgid "Email not verified"
+msgstr "البريد الإلكتروني غير مؤكد"
+
+#: templates/accounts/profile.html:46
+msgid "Check your inbox for a verification link, or resend it."
+msgstr "تحقق من بريدك الوارد لرابط التأكيد، أو أعد إرساله."
+
+#: templates/accounts/profile.html:47
+msgid "Resend verification email"
+msgstr "إعادة إرسال بريد التأكيد"
+
+#: templates/accounts/profile.html:51
+msgid "Email verified"
+msgstr "تم تأكيد البريد الإلكتروني"
+
+#: templates/accounts/profile.html:56
+msgid "Two-factor authentication"
+msgstr "التحقق بخطوتين"
+
+#: templates/accounts/profile.html:58
+msgid "Enabled"
+msgstr "مُفعّل"
+
+#: templates/accounts/profile.html:59 templates/accounts/twofa_disable.html:3
+msgid "Disable 2FA"
+msgstr "تعطيل التحقق بخطوتين"
+
+#: templates/accounts/profile.html:61
+msgid "Add an extra layer of security to your account."
+msgstr "أضف طبقة حماية إضافية لحسابك."
+
+#: templates/accounts/profile.html:62
+msgid "Enable 2FA"
+msgstr "تفعيل التحقق بخطوتين"
+
+#: templates/accounts/profile.html:66 templates/base.html:89
+#: templates/base_public.html:47
+msgid "Log out"
+msgstr "تسجيل الخروج"
+
+#: templates/accounts/profile.html:67
+msgid "Delete my account"
+msgstr "حذف حسابي"
+
+#: templates/accounts/register.html:13
+msgid "Start creating QR codes today"
+msgstr "ابدأ في إنشاء أكواد QR اليوم"
+
+#: templates/accounts/register.html:14
+msgid "Free forever for individuals. Upgrade anytime for teams."
+msgstr "مجاني للأبد للأفراد. قم بالترقية في أي وقت للفرق."
+
+#: templates/accounts/register.html:16
+msgid "No credit card required"
+msgstr "لا حاجة لبطاقة ائتمان"
+
+#: templates/accounts/register.html:17
+msgid "50 free QR codes every month"
+msgstr "50 كود QR مجانًا كل شهر"
+
+#: templates/accounts/register.html:18
+msgid "Set up in under a minute"
+msgstr "الإعداد في أقل من دقيقة"
+
+#: templates/accounts/register.html:24
+msgid "Create your account"
+msgstr "إنشاء حسابك"
+
+#: templates/accounts/register.html:25
+msgid "Free forever — no credit card required"
+msgstr "مجاني للأبد — بدون بطاقة ائتمان"
+
+#: templates/accounts/register.html:30
+msgid "Full name"
+msgstr "الاسم الكامل"
+
+#: templates/accounts/register.html:51 templates/accounts/register.html:87
+#: templates/accounts/reset_password.html:25
+msgid "At least 8 characters"
+msgstr "8 أحرف على الأقل"
+
+#: templates/accounts/register.html:53
+msgid "Create account"
+msgstr "إنشاء حساب"
+
+#: templates/accounts/register.html:61
+msgid "Already have an account?"
+msgstr "لديك حساب بالفعل؟"
+
+#: templates/accounts/register.html:78
+msgid "Weak"
+msgstr "ضعيفة"
+
+#: templates/accounts/register.html:78
+msgid "Fair"
+msgstr "مقبولة"
+
+#: templates/accounts/register.html:78
+msgid "Good"
+msgstr "جيدة"
+
+#: templates/accounts/register.html:78
+msgid "Strong"
+msgstr "قوية"
+
+#: templates/accounts/reset_password.html:3
+msgid "Reset Password"
+msgstr "إعادة تعيين كلمة المرور"
+
+#: templates/accounts/reset_password.html:13
+msgid "Almost there"
+msgstr "اقتربنا من الانتهاء"
+
+#: templates/accounts/reset_password.html:14
+msgid "Choose a new, strong password for your account."
+msgstr "اختر كلمة مرور جديدة وقوية لحسابك."
+
+#: templates/accounts/reset_password.html:20
+msgid "Link expired"
+msgstr "انتهت صلاحية الرابط"
+
+#: templates/accounts/reset_password.html:21
+msgid "This password reset link is invalid or has expired."
+msgstr "رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية."
+
+#: templates/accounts/reset_password.html:22
+msgid "Request a new link"
+msgstr "طلب رابط جديد"
+
+#: templates/accounts/reset_password.html:24
+msgid "Set new password"
+msgstr "تعيين كلمة مرور جديدة"
+
+#: templates/accounts/reset_password.html:30
+msgid "New password"
+msgstr "كلمة المرور الجديدة"
+
+#: templates/accounts/reset_password.html:34
+msgid "Confirm password"
+msgstr "تأكيد كلمة المرور"
+
+#: templates/accounts/reset_password.html:37
+msgid "Reset password"
+msgstr "إعادة تعيين كلمة المرور"
+
+#: templates/accounts/twofa_disable.html:8
+msgid "Disable two-factor authentication?"
+msgstr "تعطيل التحقق بخطوتين؟"
+
+#: templates/accounts/twofa_disable.html:9
+msgid "This will make your account less secure."
+msgstr "هذا سيجعل حسابك أقل أمانًا."
+
+#: templates/accounts/twofa_disable.html:12
+msgid "Yes, disable 2FA"
+msgstr "نعم، عطّل التحقق بخطوتين"
+
+#: templates/accounts/twofa_setup.html:3
+msgid "Set up 2FA"
+msgstr "إعداد التحقق بخطوتين"
+
+#: templates/accounts/twofa_setup.html:7
+msgid "Set up two-factor authentication"
+msgstr "إعداد التحقق بخطوتين"
+
+#: templates/accounts/twofa_setup.html:8
+msgid "Scan this QR code with Google Authenticator, Authy, or any TOTP app."
+msgstr ""
+"امسح كود QR هذا باستخدام Google Authenticator أو Authy أو أي تطبيق TOTP."
+
+#: templates/accounts/twofa_setup.html:12
+msgid "Or enter this code manually:"
+msgstr "أو أدخل هذا الرمز يدويًا:"
+
+#: templates/accounts/twofa_setup.html:20
+msgid "Enter the 6-digit code from your app"
+msgstr "أدخل الرمز المكوّن من 6 أرقام من تطبيقك"
+
+#: templates/accounts/twofa_setup.html:23
+msgid "Verify & Enable"
+msgstr "تحقّق وفعّل"
+
+#: templates/accounts/twofa_verify.html:3
+msgid "Verify 2FA"
+msgstr "تحقّق من التحقق بخطوتين"
+
+#: templates/accounts/twofa_verify.html:8
+msgid "Two-factor verification"
+msgstr "التحقق بخطوتين"
+
+#: templates/accounts/twofa_verify.html:9
+msgid "Enter the 6-digit code from your authenticator app."
+msgstr "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة."
+
+#: templates/accounts/twofa_verify.html:16
+msgid "Verify"
+msgstr "تحقّق"
+
+#: templates/accounts/verify_email.html:3
+msgid "Verify Email"
+msgstr "تأكيد البريد الإلكتروني"
+
+#: templates/accounts/verify_email.html:9
+msgid "Email verified!"
+msgstr "تم تأكيد البريد الإلكتروني!"
+
+#: templates/accounts/verify_email.html:10
+msgid "Your email address has been confirmed."
+msgstr "تم تأكيد عنوان بريدك الإلكتروني."
+
+#: templates/accounts/verify_email.html:13
+msgid "Link invalid"
+msgstr "الرابط غير صالح"
+
+#: templates/accounts/verify_email.html:14
+msgid "This verification link is invalid or has already been used."
+msgstr "رابط التأكيد هذا غير صالح أو تم استخدامه من قبل."
+
+#: templates/accounts/verify_email.html:16
+msgid "Go to Dashboard"
+msgstr "الذهاب إلى لوحة التحكم"
+
+#: templates/base.html:16 templates/base_public.html:16
+msgid "Professional QR Code Generator"
+msgstr "مولّد أكواد QR احترافي"
+
+#: templates/base.html:43 templates/base_public.html:95
+msgid "Generator"
+msgstr "المولّد"
+
+#: templates/base.html:47
+msgid "Analytics"
+msgstr "التحليلات"
+
+#: templates/base.html:51
+msgid "Dynamic"
+msgstr "الديناميكي"
+
+#: templates/base.html:55
+msgid "Teams"
+msgstr "الفرق"
+
+#: templates/base.html:59
+msgid "Bulk"
+msgstr "التوليد الجماعي"
+
+#: templates/base.html:63
+msgid "Scanner"
+msgstr "الماسح الضوئي"
+
+#: templates/base.html:83
+msgid "API"
+msgstr "واجهة API"
+
+#: templates/base.html:87
+msgid "Billing"
+msgstr "الفواتير"
+
+#: templates/base.html:97 templates/base_public.html:61
+msgid "Switch language"
+msgstr "تبديل اللغة"
+
+#: templates/base.html:102 templates/base_public.html:66
+msgid "Toggle theme"
+msgstr "تبديل المظهر"
+
+#: templates/base_public.html:40 templates/base_public.html:94
+#: templates/core/pricing.html:3
+msgid "Pricing"
+msgstr "الأسعار"
+
+#: templates/base_public.html:41 templates/base_public.html:99
+#: templates/core/about.html:3
+msgid "About"
+msgstr "من نحن"
+
+#: templates/base_public.html:42 templates/base_public.html:104
+#: templates/core/faq.html:3
+msgid "FAQ"
+msgstr "الأسئلة الشائعة"
+
+#: templates/base_public.html:43 templates/base_public.html:100
+#: templates/core/contact.html:3
+msgid "Contact"
+msgstr "تواصل معنا"
+
+#: templates/base_public.html:46
+msgid "Dashboard"
+msgstr "لوحة التحكم"
+
+#: templates/base_public.html:50 templates/core/pricing.html:19
+msgid "Get started"
+msgstr "ابدأ الآن"
+
+#: templates/base_public.html:71
+msgid "Menu"
+msgstr "القائمة"
+
+#: templates/base_public.html:86
+msgid ""
+"Generate, customize, and track QR codes — built for individuals and teams."
+msgstr "أنشئ وخصّص وتتبّع أكواد QR — مصمم للأفراد والفرق."
+
+#: templates/base_public.html:88 templates/core/contact.html:13
+msgid "Your email"
+msgstr "بريدك الإلكتروني"
+
+#: templates/base_public.html:89
+msgid "Subscribe"
+msgstr "اشتراك"
+
+#: templates/base_public.html:93
+msgid "Product"
+msgstr "المنتج"
+
+#: templates/base_public.html:98
+msgid "Company"
+msgstr "الشركة"
+
+#: templates/base_public.html:103
+msgid "Support"
+msgstr "الدعم"
+
+#: templates/base_public.html:107
+msgid "All rights reserved."
+msgstr "جميع الحقوق محفوظة."
+
+#: templates/core/about.html:7
+msgid "About QR Forge"
+msgstr "عن QR Forge"
+
+#: templates/core/about.html:9
+msgid ""
+"We're building the simplest way for individuals and teams to create, "
+"customize, and track QR codes — without the clutter."
+msgstr ""
+"نحن نبني أبسط طريقة للأفراد والفرق لإنشاء وتخصيص وتتبّع أكواد QR — بدون "
+"تعقيد."
+
+#: templates/core/about.html:13
+msgid "Founded"
+msgstr "التأسيس"
+
+#: templates/core/about.html:14
+msgid "Active users"
+msgstr "مستخدمون نشطون"
+
+#: templates/core/about.html:15
+msgid "Countries served"
+msgstr "دولة نخدمها"
+
+#: templates/core/contact.html:7
+msgid "Get in touch"
+msgstr "تواصل معنا"
+
+#: templates/core/contact.html:8
+msgid ""
+"Questions, feedback, or partnership ideas — we'd love to hear from you."
+msgstr "أسئلة أو ملاحظات أو أفكار شراكة — يسعدنا أن نسمع منك."
+
+#: templates/core/contact.html:17
+msgid "Message"
+msgstr "الرسالة"
+
+#: templates/core/contact.html:18
+msgid "How can we help?"
+msgstr "كيف يمكننا المساعدة؟"
+
+#: templates/core/contact.html:20
+msgid "Send message"
+msgstr "إرسال الرسالة"
+
+#: templates/core/contact.html:28
+msgid "Message sent! We will reply within 24h."
+msgstr "تم إرسال الرسالة! سنرد خلال 24 ساعة."
+
+#: templates/core/faq.html:7
+msgid "Frequently Asked Questions"
+msgstr "الأسئلة الشائعة"
+
+#: templates/core/landing.html:3
+msgid "QR Forge"
+msgstr "QR Forge"
+
+#: templates/core/landing.html:9
+msgid "Built for individuals & teams"
+msgstr "مصمم للأفراد والفرق"
+
+#: templates/core/landing.html:12
+msgid "QR codes that look as good as they work"
+msgstr "أكواد QR بمظهر جميل بقدر كفاءتها"
+
+#: templates/core/landing.html:15
+msgid ""
+"Generate, customize, and track QR codes for URLs, WiFi, contacts and more — "
+"with analytics, bulk export, and team collaboration built in."
+msgstr ""
+"أنشئ وخصّص وتتبّع أكواد QR للروابط والواي فاي وجهات الاتصال والمزيد — مع "
+"تحليلات وتصدير جماعي وتعاون جماعي مدمج."
+
+#: templates/core/landing.html:18 templates/core/landing.html:88
+msgid "Get started free"
+msgstr "ابدأ مجانًا"
+
+#: templates/core/landing.html:19
+msgid "See pricing"
+msgstr "مشاهدة الأسعار"
+
+#: templates/core/landing.html:24
+msgid "QR codes generated"
+msgstr "كود QR تم إنشاؤه"
+
+#: templates/core/landing.html:25
+msgid "QR types supported"
+msgstr "أنواع أكواد مدعومة"
+
+#: templates/core/landing.html:26
+msgid "Uptime"
+msgstr "نسبة التشغيل"
+
+#: templates/core/landing.html:27
+msgid "Languages — AR / EN"
+msgstr "اللغات — عربي / إنجليزي"
+
+#: templates/core/landing.html:32
+msgid "Everything you need, in one place"
+msgstr "كل ما تحتاجه في مكان واحد"
+
+#: templates/core/landing.html:33
+msgid "From a single QR code to a full marketing campaign."
+msgstr "من كود QR واحد إلى حملة تسويقية كاملة."
+
+#: templates/core/landing.html:48
+msgid "How it works"
+msgstr "كيف يعمل"
+
+#: templates/core/landing.html:52
+msgid "Create an account"
+msgstr "أنشئ حسابًا"
+
+#: templates/core/landing.html:53
+msgid "Sign up free in seconds — no credit card required."
+msgstr "سجّل مجانًا خلال ثوانٍ — بدون بطاقة ائتمان."
+
+#: templates/core/landing.html:56
+msgid "Design your QR code"
+msgstr "صمّم كود QR الخاص بك"
+
+#: templates/core/landing.html:57
+msgid "Pick a type, customize the look, and preview it live."
+msgstr "اختر نوعًا، وخصّص المظهر، وشاهد المعاينة الفورية."
+
+#: templates/core/landing.html:60
+msgid "Share & track"
+msgstr "شارك وتتبّع"
+
+#: templates/core/landing.html:61
+msgid "Download it and watch scans roll in on your analytics dashboard."
+msgstr "حمّله وتابع عمليات المسح في لوحة التحليلات الخاصة بك."
+
+#: templates/core/landing.html:68
+msgid "Loved by makers and marketers"
+msgstr "يحبه صنّاع المحتوى والمسوّقون"
+
+#: templates/core/landing.html:86
+msgid "Ready to create your first QR code?"
+msgstr "جاهز لإنشاء أول كود QR؟"
+
+#: templates/core/landing.html:87
+msgid ""
+"Free forever for individuals — upgrade anytime for teams and advanced "
+"features."
+msgstr "مجاني للأبد للأفراد — قم بالترقية في أي وقت للفرق والميزات المتقدمة."
+
+#: templates/core/pricing.html:7
+msgid "Simple, transparent pricing"
+msgstr "أسعار بسيطة وشفافة"
+
+#: templates/core/pricing.html:8
+msgid "Start free. Upgrade when your team needs more."
+msgstr "ابدأ مجانًا. قم بالترقية عندما يحتاج فريقك للمزيد."
+
+#: templates/core/pricing.html:10
+msgid "Monthly"
+msgstr "شهري"
+
+#: templates/core/pricing.html:11
+msgid "Yearly"
+msgstr "سنوي"
+
+#: templates/core/pricing.html:16
+msgid "Free"
+msgstr "مجاني"
+
+#: templates/core/pricing.html:18
+msgid "50 QR codes / month · Basic customization · 1 user"
+msgstr "50 كود QR شهريًا · تخصيص أساسي · مستخدم واحد"
+
+#: templates/core/pricing.html:22
+msgid "Pro"
+msgstr "احترافي"
+
+#: templates/core/pricing.html:23
+msgid "mo"
+msgstr "شهر"
+
+#: templates/core/pricing.html:24
+msgid "Unlimited QR codes · Dynamic QR · Teams · API access"
+msgstr "أكواد QR غير محدودة · أكواد ديناميكية · فرق · واجهة API"
+
+#: templates/core/pricing.html:25
+msgid "Start free trial"
+msgstr "ابدأ التجربة المجانية"
+
+#: templates/core/pricing.html:29
+msgid "Full billing & checkout (Stripe) is built in Sprint 10."
+msgstr "نظام الفواتير والدفع الكامل (Stripe) يتم إنشاؤه في المرحلة 10."

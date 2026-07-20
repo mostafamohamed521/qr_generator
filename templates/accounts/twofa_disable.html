@@ -1,0 +1,17 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "Disable 2FA" %}{% endblock %}
+{% block content %}
+<div style="max-width:400px;margin:60px auto;text-align:center">
+  <div class="feature-card">
+    <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.3rem;margin-bottom:8px">{% trans "Disable two-factor authentication?" %}</h1>
+    <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:20px">{% trans "This will make your account less secure." %}</p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn-secondary" style="width:100%;color:var(--danger);border-color:var(--danger)">{% trans "Yes, disable 2FA" %}</button>
+    </form>
+    <a href="{% url 'accounts:profile' %}" style="display:block;margin-top:14px;font-size:.82rem;color:var(--text-muted)">{% trans "Cancel" %}</a>
+  </div>
+</div>
+{% endblock %}

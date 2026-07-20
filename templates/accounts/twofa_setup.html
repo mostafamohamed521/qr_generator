@@ -1,0 +1,28 @@
+{% extends 'base_public.html' %}
+{% load i18n %}
+{% block title %}{% trans "Set up 2FA" %}{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:50px auto">
+  <div class="feature-card" style="text-align:center">
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.4rem;margin-bottom:6px">{% trans "Set up two-factor authentication" %}</h1>
+    <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:20px">{% trans "Scan this QR code with Google Authenticator, Authy, or any TOTP app." %}</p>
+
+    <img src="{{ qr_image }}" alt="2FA QR code" style="width:200px;height:200px;border-radius:12px;border:1px solid var(--border);margin-bottom:16px">
+
+    <p style="font-size:.76rem;color:var(--text-muted);margin-bottom:6px">{% trans "Or enter this code manually:" %}</p>
+    <code style="display:block;background:var(--field-bg);padding:8px 12px;border-radius:8px;font-size:.8rem;margin-bottom:20px;word-break:break-all">{{ secret }}</code>
+
+    {% if error %}<div class="field-error" style="display:block;margin-bottom:14px">{{ error }}</div>{% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="auth-field" style="text-align:left">
+        <label>{% trans "Enter the 6-digit code from your app" %}</label>
+        <input type="text" name="code" class="fi" placeholder="123456" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required style="text-align:center;letter-spacing:.3em;font-size:1.1rem">
+      </div>
+      <button type="submit" class="btn-primary" style="width:100%">{% trans "Verify & Enable" %}</button>
+    </form>
+    <a href="{% url 'accounts:profile' %}" style="display:block;margin-top:16px;font-size:.82rem;color:var(--text-muted)">{% trans "Cancel" %}</a>
+  </div>
+</div>
+{% endblock %}

@@ -185,7 +185,22 @@ def invite_member(request, pk):
     invite_url = request.build_absolute_uri(f'/teams/accept/{token}/')
     _log(request.user, team, 'member.invited', {'email': email, 'role': role})
 
-    # In production this would send an email. For now return the link.
+    try:
+        from django.core.mail import send_mail
+        from django.template.loader import render_to_string
+        from django.conf import settings
+        body = render_to_string('accounts/email/team_invite.txt', {
+            'inviter_name': request.user.get_full_name() or request.user.email,
+            'team_name': team.name, 'role': role, 'invite_url': invite_url,
+        })
+        send_mail(
+            subject=f'{request.user.get_full_name() or request.user.email} invited you to {team.name}',
+            message=body, from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email], fail_silently=True,
+        )
+    except Exception:
+        pass  # don't block the invite if email sending fails
+
     return JsonResponse({'ok': True, 'invite_url': invite_url, 'email': email})
 
 
