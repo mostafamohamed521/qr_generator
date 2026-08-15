@@ -13,15 +13,32 @@ scanner      GET  /scanner/
 export_svg   GET  /api/export-svg/<id>/
 """
 import json
-from django.shortcuts import render
+from functools import wraps
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST, require_GET
+from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncHour
 from django.utils import timezone
 from datetime import timedelta
 
 from .models import QRCode
+
+
+def json_login_required(view_fn):
+    """
+    Like @login_required, but for JSON/AJAX endpoints: an unauthenticated
+    request gets a 401 JSON body instead of a 302 redirect to the login page
+    (a redirect would otherwise land in the caller's .json() as a parse error).
+    """
+    @wraps(view_fn)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({'ok': False, 'error': 'Authentication required'}, status=401)
+        return view_fn(request, *args, **kwargs)
+    return wrapper
 from .forms import (URLForm, TextForm, ContactForm, WiFiForm,
                     SMSForm, EmailForm, PhoneForm, LocationForm)
 from .qr_utils import (generate_qr_image, generate_qr_svg,
@@ -84,23 +101,31 @@ def _build_content(qr_type, d, request_post):
 
 
 # ── pages ─────────────────────────────────────────────────────────────────────
+# These are the app's dashboard pages — LOGIN_REDIRECT_URL points here, so they
+# were always meant to sit behind auth. @login_required redirects to the login
+# page (correct for a full page load, unlike the JSON endpoints below).
 
+@login_required(login_url='accounts:login')
 def index(request):
     return render(request, 'index.html')
 
 
+@login_required(login_url='accounts:login')
 def analytics(request):
     return render(request, 'analytics.html')
 
 
+@login_required(login_url='accounts:login')
 def dynamic(request):
     return render(request, 'dynamic.html')
 
 
+@login_required(login_url='accounts:login')
 def bulk(request):
     return render(request, 'bulk.html')
 
 
+@login_required(login_url='accounts:login')
 def scanner(request):
     return render(request, 'scanner.html')
 
@@ -108,6 +133,7 @@ def scanner(request):
 # ── API ───────────────────────────────────────────────────────────────────────
 
 @require_POST
+@json_login_required
 def generate(request):
     qr_type = request.POST.get('type', 'url')
     color   = request.POST.get('qr_color', '#000000').strip() or '#000000'
@@ -129,20 +155,32 @@ def generate(request):
     if not content:
         return JsonResponse({'ok': False, 'error': 'No content to encode'})
 
-    image = generate_qr_image(content, size=size, color=color, bg=bg, style=style, logo_b64=logo)
+    from billing.views import reserve_qr_quota
+    with transaction.atomic():
+        allowed, remaining = reserve_qr_quota(request.user, requested=1)
+        if not allowed:
+            return JsonResponse({
+                'ok': False, 'code': 'quota_exceeded',
+                'error': "You've reached your monthly QR code limit. Upgrade to Pro for unlimited codes.",
+                'remaining': max(remaining, 0),
+            }, status=429)
 
-    QRCode.objects.create(
-        qr_type=qr_type, label=label, content=content,
-        qr_color=color, bg_color=bg, qr_size=size,
-        qr_style=style, image_b64=image,
-    )
+        image = generate_qr_image(content, size=size, color=color, bg=bg, style=style, logo_b64=logo)
+
+        QRCode.objects.create(
+            user=request.user,
+            qr_type=qr_type, label=label, content=content,
+            qr_color=color, bg_color=bg, qr_size=size,
+            qr_style=style, image_b64=image,
+        )
 
     return JsonResponse({'ok': True, 'image': image, 'content': content})
 
 
 @require_GET
+@json_login_required
 def history(request):
-    qs = QRCode.objects.all()
+    qs = QRCode.objects.filter(user=request.user)
 
     q_str = request.GET.get('q', '').strip()
     if q_str:
@@ -175,27 +213,31 @@ def history(request):
 
 
 @require_POST
+@json_login_required
 def delete(request, pk):
     try:
-        QRCode.objects.get(pk=pk).delete()
+        QRCode.objects.get(pk=pk, user=request.user).delete()
         return JsonResponse({'ok': True})
     except QRCode.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
 
 
 @require_POST
+@json_login_required
 def clear(request):
-    QRCode.objects.all().delete()
+    QRCode.objects.filter(user=request.user).delete()
     return JsonResponse({'ok': True})
 
 
 @require_GET
+@json_login_required
 def analytics_data(request):
-    total = QRCode.objects.count()
-    
+    base_qs = QRCode.objects.filter(user=request.user)
+    total = base_qs.count()
+
     # Type breakdown
     by_type = list(
-        QRCode.objects.values('qr_type')
+        base_qs.values('qr_type')
         .annotate(count=Count('id'))
         .order_by('-count')
     )
@@ -208,7 +250,7 @@ def analytics_data(request):
     # Last 7 days activity
     seven_days_ago = timezone.now() - timedelta(days=7)
     by_day = list(
-        QRCode.objects.filter(created_at__gte=seven_days_ago)
+        base_qs.filter(created_at__gte=seven_days_ago)
         .annotate(day=TruncDate('created_at'))
         .values('day')
         .annotate(count=Count('id'))
@@ -219,20 +261,20 @@ def analytics_data(request):
 
     # Style breakdown
     by_style = list(
-        QRCode.objects.values('qr_style')
+        base_qs.values('qr_style')
         .annotate(count=Count('id'))
     )
 
     # Most used colors
     recent = list(
-        QRCode.objects.order_by('-created_at')[:5]
+        base_qs.order_by('-created_at')[:5]
         .values('qr_color', 'bg_color', 'label', 'qr_type', 'created_at', 'image_b64')
     )
     for r in recent:
         r['created_at'] = r['created_at'].strftime('%d %b %Y')
 
     from django.db.models import Sum
-    total_scans = QRCode.objects.aggregate(s=Sum('scan_count'))['s'] or 0
+    total_scans = base_qs.aggregate(s=Sum('scan_count'))['s'] or 0
 
     return JsonResponse({
         'ok': True,
@@ -246,6 +288,7 @@ def analytics_data(request):
 
 
 @require_POST
+@json_login_required
 def bulk_generate(request):
     try:
         payload = json.loads(request.body)
@@ -261,30 +304,54 @@ def bulk_generate(request):
     style  = payload.get('style', 'square')
     size   = _parse_size(payload.get('size', 300))
 
-    results = []
+    # Pre-filter to the items that will actually attempt a QRCode row, so the
+    # quota check matches what's really about to be created.
+    valid_items = []
     for item in items:
         text = str(item.get('content', '')).strip()
-        label = str(item.get('label', '')).strip()
-        if not text:
-            continue
-        try:
-            image = generate_qr_image(text, size=size, color=color, bg=bg, style=style)
-            obj = QRCode.objects.create(
-                qr_type='text', label=label, content=text,
-                qr_color=color, bg_color=bg, qr_size=size,
-                qr_style=style, image_b64=image,
-            )
-            results.append({'id': obj.id, 'label': label or text[:30], 'image': image})
-        except Exception as e:
-            results.append({'id': None, 'label': label or text[:30], 'error': str(e)})
+        if text:
+            valid_items.append((text, str(item.get('label', '')).strip()))
+
+    results = []
+    from billing.views import reserve_qr_quota
+    with transaction.atomic():
+        allowed, remaining = reserve_qr_quota(request.user, requested=len(valid_items))
+        if not allowed:
+            return JsonResponse({
+                'ok': False, 'code': 'quota_exceeded',
+                'error': f"This batch of {len(valid_items)} would exceed your monthly QR code limit "
+                         f"({max(remaining, 0)} remaining). Reduce the batch size or upgrade to Pro.",
+                'remaining': max(remaining, 0),
+            }, status=429)
+
+        for text, label in valid_items:
+            try:
+                image = generate_qr_image(text, size=size, color=color, bg=bg, style=style)
+                # Nested atomic (savepoint): if this single item's create()
+                # raises a DB error, only its savepoint rolls back — it
+                # doesn't poison the outer transaction (and thus the rest of
+                # the batch, or the quota reservation) the way an uncaught
+                # DB exception inside a single atomic() block would on
+                # backends like PostgreSQL.
+                with transaction.atomic():
+                    obj = QRCode.objects.create(
+                        user=request.user,
+                        qr_type='text', label=label, content=text,
+                        qr_color=color, bg_color=bg, qr_size=size,
+                        qr_style=style, image_b64=image,
+                    )
+                results.append({'id': obj.id, 'label': label or text[:30], 'image': image})
+            except Exception as e:
+                results.append({'id': None, 'label': label or text[:30], 'error': str(e)})
 
     return JsonResponse({'ok': True, 'results': results})
 
 
 @require_GET
+@login_required(login_url='accounts:login')
 def export_svg(request, pk):
     try:
-        q = QRCode.objects.get(pk=pk)
+        q = QRCode.objects.get(pk=pk, user=request.user)
     except QRCode.DoesNotExist:
         return HttpResponse('Not found', status=404)
 
@@ -300,6 +367,7 @@ import csv
 from django.http import HttpResponse
 
 @require_GET
+@login_required(login_url='accounts:login')
 def export_csv(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="qr_history.csv"'
@@ -308,7 +376,7 @@ def export_csv(request):
     writer = csv.writer(response)
     writer.writerow(['ID', 'Type', 'Label', 'Content', 'Color', 'Background', 'Size', 'Style', 'Scan Count', 'Created At'])
 
-    qs = QRCode.objects.all()
+    qs = QRCode.objects.filter(user=request.user)
 
     q_str = request.GET.get('q', '').strip()
     if q_str:
@@ -375,9 +443,10 @@ def dynamic_redirect(request, short_code):
 
 
 @require_GET
+@json_login_required
 def dynamic_list(request):
-    """Return all dynamic links as JSON for the dashboard."""
-    links = DynamicLink.objects.all()
+    """Return the caller's dynamic links as JSON for the dashboard."""
+    links = DynamicLink.objects.filter(user=request.user)
     return JsonResponse({'ok': True, 'links': [{
         'id':         l.id,
         'short_code': l.short_code,
@@ -391,6 +460,7 @@ def dynamic_list(request):
 
 
 @require_POST
+@json_login_required
 def dynamic_create(request):
     """Create a new dynamic QR link."""
     try:
@@ -408,6 +478,7 @@ def dynamic_create(request):
     qr_style  = payload.get('qr_style', 'square')
 
     link      = DynamicLink.objects.create(
+        user=request.user,
         target_url=target_url, label=label,
         qr_color=qr_color, bg_color=bg_color, qr_style=qr_style,
     )
@@ -431,10 +502,11 @@ def dynamic_create(request):
 
 
 @require_POST
+@json_login_required
 def dynamic_update(request, pk):
     """Update the target URL and/or label of a dynamic link."""
     try:
-        link = DynamicLink.objects.get(pk=pk)
+        link = DynamicLink.objects.get(pk=pk, user=request.user)
     except DynamicLink.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
 
@@ -459,20 +531,22 @@ def dynamic_update(request, pk):
 
 
 @require_POST
+@json_login_required
 def dynamic_delete(request, pk):
     """Delete a dynamic link and all its scan events."""
     try:
-        DynamicLink.objects.get(pk=pk).delete()
+        DynamicLink.objects.get(pk=pk, user=request.user).delete()
         return JsonResponse({'ok': True})
     except DynamicLink.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
 
 
 @require_GET
+@json_login_required
 def dynamic_stats(request, pk):
     """Per-link scan stats: total, by day (last 14 days)."""
     try:
-        link = DynamicLink.objects.get(pk=pk)
+        link = DynamicLink.objects.get(pk=pk, user=request.user)
     except DynamicLink.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
 
@@ -499,6 +573,7 @@ def dynamic_stats(request, pk):
 
 
 @require_POST
+@json_login_required
 def save_scan(request):
     """Save a scanner result to QR history."""
     try:
@@ -530,6 +605,7 @@ def save_scan(request):
 
     img = generate_qr_image(content, size=200)
     obj = QRCode.objects.create(
+        user=request.user,
         qr_type=qr_type, label=f'Scanned: {content[:40]}',
         content=content, image_b64=img,
     )
