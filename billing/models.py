@@ -32,3 +32,17 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.user} → {self.plan.code}"
+
+
+class StripeEvent(models.Model):
+    """
+    Records every processed Stripe webhook event id, so a redelivered/duplicate
+    event (Stripe retries on timeout, and can send the same event more than
+    once) is applied at most once. The event id itself is the primary key.
+    """
+    id           = models.CharField(max_length=255, primary_key=True)  # Stripe's evt_... id
+    event_type   = models.CharField(max_length=100)
+    received_at  = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.id} ({self.event_type})"
