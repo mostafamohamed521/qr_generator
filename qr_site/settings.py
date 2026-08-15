@@ -20,6 +20,11 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_DEFAULT_FROM_EMAIL', 'QR Forge <noreply@qrforge.local>')
+# Where contact-form submissions are emailed to (best-effort notification —
+# the message itself is always saved to the database regardless). Empty by
+# default so a fresh install doesn't silently fail_silently-swallow mail
+# errors trying to reach an address nobody configured.
+CONTACT_NOTIFY_EMAIL = os.environ.get('DJANGO_CONTACT_NOTIFY_EMAIL', '')
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24  # 24 hours
 
 # ── Security ──────────────────────────────────────────────────────────────────
@@ -127,6 +132,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 RATE_LIMIT_GENERATE   = 30   # generate endpoint per minute
 RATE_LIMIT_AUTH       = 10   # login/register per minute
 RATE_LIMIT_GLOBAL     = 200  # all other API per minute
+
+# ── Stripe ────────────────────────────────────────────────────────────────────
+# Checkout is not implemented yet (see billing app). These are read so the
+# webhook handler can verify signatures once real keys are configured; until
+# then they're empty and the webhook fails closed (rejects everything) rather
+# than trusting unverified input.
+STRIPE_SECRET_KEY     = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOGGING = {
