@@ -68,13 +68,14 @@
       <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:4px">API Keys</h2>
       <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px">Pass your key as: <code>Authorization: Bearer &lt;key&gt;</code></p>
 
+      <div id="key-list">
       {% if keys %}
         {% for key in keys %}
         <div class="key-card">
           <div style="flex:1">
             <div style="font-weight:600">{{ key.name }}</div>
-            <div class="key-val" onclick="navigator.clipboard.writeText('{{ key.key }}').then(()=>window.showToast('Copied!','ok'))" title="Click to copy">
-              {{ key.key|slice:":18" }}…
+            <div class="key-val" title="Only the prefix is stored/shown after creation — the full key is never displayed again">
+              {{ key.key_prefix|default:key.key|slice:":18" }}…
             </div>
           </div>
           <div style="color:var(--text-muted);font-size:.74rem">Created {{ key.created_at|date:"d M Y" }}</div>
@@ -84,6 +85,12 @@
       {% else %}
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:14px">You have no API keys yet.</p>
       {% endif %}
+      </div>
+
+      <div id="key-reveal" style="display:none;background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin-top:12px">
+        <div style="font-size:.78rem;font-weight:700;color:var(--accent);margin-bottom:4px">Copy your key now — it won't be shown again</div>
+        <div class="key-val" id="key-reveal-val" style="word-break:break-all" title="Click to copy"></div>
+      </div>
 
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <input type="text" id="new-key-name" class="fi" placeholder="Key name (e.g. My App)" style="max-width:240px">
@@ -256,6 +263,19 @@
   "target_url": "https://example.com",
   "scanned_at": "2026-07-04T12:34:56Z"
 }</div>
+{% if webhooks %}
+        {% for wh in webhooks %}
+        <div class="key-card">
+          <div style="flex:1">
+            <div style="font-weight:600;word-break:break-all">{{ wh.target_url }}</div>
+            <div style="color:var(--text-muted);font-size:.74rem">{{ wh.event }} · created {{ wh.created_at|date:"d M Y" }}</div>
+          </div>
+          <button class="act-btn danger" style="padding:5px 10px;font-size:.72rem;color:var(--danger)" onclick="deleteWebhook({{ wh.id }}, this)">Delete</button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:14px">You have no webhooks yet.</p>
+      {% endif %}
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <input type="url" id="new-wh-url" class="fi" placeholder="https://your-server.com/webhook" style="flex:1;min-width:200px">
         <button class="act-btn" onclick="createWebhook()" style="padding:9px 14px">+ Add Webhook</button>
@@ -282,19 +302,54 @@ function csrfToken() {
   return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||'';
 }
 
+let lastCreatedRawKey = null;  // only ever set right after creation — see the security note in the model/migration for why we don't persist or re-fetch this
+
 async function createKey() {
   const name  = document.getElementById('new-key-name').value.trim() || 'My API Key';
   const errEl = document.getElementById('key-error');
   errEl.style.display = 'none';
-  const res  = await fetch('{% url "api:create_key" %}', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
-    body: JSON.stringify({name}),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('{% url "api:create_key" %}', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body: JSON.stringify({name}),
+    });
+    data = await res.json();
+  } catch {
+    errEl.textContent = 'Connection error — please try again.';
+    errEl.style.display = 'block';
+    return;
+  }
   if (data.ok) {
-    window.showToast('API Key created! Copy it now — it won\'t be shown again.', 'ok');
-    setTimeout(() => location.reload(), 1500);
+    lastCreatedRawKey = data.key.key;
+    // The full key value is only ever returned in this one response — it's
+    // never stored server-side and never sent down again, so it has to be
+    // shown here rather than after a reload (which is what the previous
+    // version of this page did, relying on the plaintext still being in the
+    // database to re-display a slice of it on every visit).
+    const revealEl = document.getElementById('key-reveal');
+    const valEl     = document.getElementById('key-reveal-val');
+    valEl.textContent = data.key.key;
+    valEl.onclick = () => navigator.clipboard.writeText(data.key.key)
+      .then(() => window.showToast('Copied!', 'ok'));
+    revealEl.style.display = 'block';
+
+    const card = document.createElement('div');
+    card.className = 'key-card';
+    card.innerHTML = `
+      <div style="flex:1">
+        <div style="font-weight:600">${data.key.name}</div>
+        <div class="key-val">${data.key.prefix}…</div>
+      </div>
+      <div style="color:var(--text-muted);font-size:.74rem">Created ${data.key.created_at}</div>
+      <button class="act-btn danger" style="padding:5px 10px;font-size:.72rem;color:var(--danger)" onclick="revokeKey(${data.key.id}, this)">Revoke</button>`;
+    const list = document.getElementById('key-list');
+    list.querySelector('p')?.remove();  // remove "no keys yet" placeholder if present
+    list.prepend(card);
+
+    document.getElementById('new-key-name').value = '';
+    window.showToast('API Key created — copy it now, it won\'t be shown again.', 'ok');
   } else {
     errEl.textContent = data.error;
     errEl.style.display = 'block';
@@ -303,29 +358,47 @@ async function createKey() {
 
 async function revokeKey(id, btn) {
   if (!confirm('Revoke this API key? Any apps using it will stop working.')) return;
-  const res  = await fetch(`/api/v1/keys/${id}/revoke/`, {
-    method:'POST', headers:{'X-CSRFToken':csrfToken()},
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`/api/v1/keys/${id}/revoke/`, {
+      method:'POST', headers:{'X-CSRFToken':csrfToken()},
+    });
+    data = await res.json();
+  } catch {
+    window.showToast('Connection error — please try again.', 'err');
+    return;
+  }
   if (data.ok) { btn.closest('.key-card').remove(); window.showToast('Key revoked','ok'); }
+  else window.showToast(data.error || 'Failed to revoke key', 'err');
 }
 
 async function tryGenerate(btn) {
   const resultEl = document.getElementById('try-generate-result');
-  resultEl.innerHTML = '<div style="color:var(--text-muted);font-size:.8rem">Generating…</div>';
   resultEl.classList.add('show');
 
-  // pick first key
-  const keyEl = document.querySelector('.key-val');
-  if (!keyEl) { resultEl.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Create an API key first</div>'; return; }
-  const fullKey = keyEl.onclick.toString().match(/'([^']+)'/)?.[1];
-  // fallback: we already have session so can hit it directly
-  const res = await fetch('/api/v1/generate/', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
-    body: JSON.stringify({type:'url', url:'https://example.com', size:200}),
-  });
-  const data = await res.json();
+  // The API is Bearer-token authenticated by design (that's the whole
+  // point of the demo) -- and since keys are hashed server-side, the raw
+  // value only ever exists in the browser for the moment right after
+  // creation. So this can only demo against a key created in this same
+  // page load, not any key that happens to be listed on the page.
+  if (!lastCreatedRawKey) {
+    resultEl.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Create an API key above first, then try it here.</div>';
+    return;
+  }
+
+  resultEl.innerHTML = '<div style="color:var(--text-muted);font-size:.8rem">Generating…</div>';
+  let data;
+  try {
+    const res = await fetch('/api/v1/generate/', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${lastCreatedRawKey}`},
+      body: JSON.stringify({type:'url', url:'https://example.com', size:200}),
+    });
+    data = await res.json();
+  } catch {
+    resultEl.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Connection error — please try again.</div>';
+    return;
+  }
   if (data.ok) {
     resultEl.innerHTML = `<img src="${data.image}" style="width:100px;height:100px;border-radius:8px;border:1px solid var(--border);margin-top:8px"><div style="font-size:.76rem;color:var(--text-muted);margin-top:4px">ID: ${data.id}</div>`;
   } else {
@@ -333,15 +406,37 @@ async function tryGenerate(btn) {
   }
 }
 
+async function deleteWebhook(id, btn) {
+  let data;
+  try {
+    const res = await fetch(`/api/v1/webhooks/${id}/delete/`, {
+      method:'POST', headers:{'X-CSRFToken':csrfToken()},
+    });
+    data = await res.json();
+  } catch {
+    window.showToast('Connection error — please try again.', 'err');
+    return;
+  }
+  if (data.ok) { btn.closest('.key-card').remove(); window.showToast('Webhook deleted','ok'); }
+  else window.showToast(data.error || 'Failed to delete webhook', 'err');
+}
+
 async function createWebhook() {
   const url    = document.getElementById('new-wh-url').value.trim();
   const resEl  = document.getElementById('wh-result');
   if (!url) { resEl.style.color='var(--danger)'; resEl.textContent='Enter a target URL'; return; }
-  const res  = await fetch('{% url "api:create_webhook" %}', {
-    method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
-    body: JSON.stringify({target_url: url}),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('{% url "api:create_webhook" %}', {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body: JSON.stringify({target_url: url}),
+    });
+    data = await res.json();
+  } catch {
+    resEl.style.color='var(--danger)';
+    resEl.textContent = 'Connection error — please try again.';
+    return;
+  }
   if (data.ok) {
     resEl.style.color='var(--accent)';
     resEl.textContent = `✓ Webhook created. Secret: ${data.webhook.secret}`;
