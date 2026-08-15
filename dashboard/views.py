@@ -135,6 +135,16 @@ def toggle_user(request, pk):
         p = json.loads(request.body)
     except Exception:
         return JsonResponse({'ok':False,'error':'Invalid JSON'},status=400)
+
+    # Granting/revoking staff access is a superuser-only action — a staff user
+    # (is_staff=True) who isn't a superuser must not be able to mint other
+    # admins. Likewise, only a superuser may touch another superuser's account
+    # at all, otherwise any staff member could lock out the site's superusers.
+    if 'is_staff' in p and not request.user.is_superuser:
+        return JsonResponse({'ok':False,'error':'Only a superuser can grant or revoke staff access'},status=403)
+    if user.is_superuser and not request.user.is_superuser:
+        return JsonResponse({'ok':False,'error':'Only a superuser can modify a superuser account'},status=403)
+
     if 'is_active' in p: user.is_active = bool(p['is_active'])
     if 'is_staff'  in p: user.is_staff  = bool(p['is_staff'])
     user.save(update_fields=['is_active','is_staff'])
@@ -149,6 +159,8 @@ def delete_user(request, pk):
     user = get_object_or_404(User, pk=pk)
     if user == request.user:
         return JsonResponse({'ok':False,'error':"Can't delete yourself"},status=400)
+    if user.is_superuser and not request.user.is_superuser:
+        return JsonResponse({'ok':False,'error':'Only a superuser can delete a superuser account'},status=403)
     email = user.email
     user.delete()
     AuditLogEntry.objects.create(user=request.user, team=None,
