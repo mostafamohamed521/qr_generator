@@ -89,8 +89,14 @@
 {% block extra_js %}
 <script>
 async function loadDashboard() {
-  const res  = await fetch('{% url "dashboard:stats" %}');
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('{% url "dashboard:stats" %}');
+    data = await res.json();
+  } catch {
+    window.showToast('Connection error — could not load dashboard stats.', 'err');
+    return;
+  }
   if (!data.ok) return;
 
   const { stats, user_growth, qr_growth, qr_by_type, top_users, recent } = data;
