@@ -8,11 +8,21 @@ from django.contrib.auth.models import User
 from .models import Team, TeamMember, TeamInvite
 
 
+def give_pro(user):
+    """Team creation requires Plan.allows_team — most of these tests are
+    about team mechanics, not entitlement gating itself (see
+    TeamEntitlementTests for that), so give the test user a Pro
+    subscription up front rather than tripping the gate in every test."""
+    from billing.models import Plan, Subscription
+    Subscription.objects.create(user=user, plan=Plan.objects.get(code='pro'), status='active')
+
+
 class TeamCreationTests(TestCase):
 
     def setUp(self):
         self.c = Client()
         self.user = User.objects.create_user('owner@example.com', 'owner@example.com', 'pass12345')
+        give_pro(self.user)
         self.c.login(username='owner@example.com', password='pass12345')
 
     def test_create_team_makes_creator_owner(self):
@@ -44,6 +54,7 @@ class TeamMembershipTests(TestCase):
         self.c = Client()
         self.owner = User.objects.create_user('owner2@example.com', 'owner2@example.com', 'pass12345')
         self.member = User.objects.create_user('member@example.com', 'member@example.com', 'pass12345')
+        give_pro(self.owner)
         self.c.login(username='owner2@example.com', password='pass12345')
         r = self.c.post('/teams/api/create/', json.dumps({'name': 'Beta Team'}), content_type='application/json')
         self.team_id = r.json()['team']['id']
@@ -139,10 +150,12 @@ class TeamAccessControlTests(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user('own3@example.com', 'own3@example.com', 'pass12345')
         self.outsider = User.objects.create_user('out@example.com', 'out@example.com', 'pass12345')
+        give_pro(self.owner)
         c = Client()
         c.login(username='own3@example.com', password='pass12345')
         r = c.post('/teams/api/create/', json.dumps({'name': 'Private Team'}), content_type='application/json')
         self.team_id = r.json()['team']['id']
+        self.team_slug = Team.objects.get(pk=self.team_id).slug
 
     def test_non_member_cannot_view_members(self):
         c2 = Client()
@@ -154,3 +167,42 @@ class TeamAccessControlTests(TestCase):
         c2 = Client()
         r = c2.get('/teams/')
         self.assertEqual(r.status_code, 302)
+
+    def test_non_member_cannot_view_team_detail_page(self):
+        c2 = Client()
+        c2.login(username='out@example.com', password='pass12345')
+        r = c2.get(f'/teams/{self.team_slug}/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_member_can_view_team_detail_page(self):
+        c = Client()
+        c.login(username='own3@example.com', password='pass12345')
+        r = c.get(f'/teams/{self.team_slug}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Private Team')
+
+    def test_team_detail_page_requires_login(self):
+        c2 = Client()
+        r = c2.get(f'/teams/{self.team_slug}/')
+        self.assertEqual(r.status_code, 302)
+
+
+class TeamEntitlementTests(TestCase):
+    """Plan.allows_team must be enforced server-side, not just hidden in the UI."""
+
+    def setUp(self):
+        self.c = Client()
+        self.user = User.objects.create_user('freeuser@example.com', 'freeuser@example.com', 'pass12345')
+        self.c.login(username='freeuser@example.com', password='pass12345')
+
+    def test_free_user_cannot_create_team(self):
+        r = self.c.post('/teams/api/create/', json.dumps({'name': 'Nope'}), content_type='application/json')
+        d = r.json()
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(d['ok'])
+        self.assertEqual(Team.objects.filter(name='Nope').count(), 0)
+
+    def test_pro_user_can_create_team(self):
+        give_pro(self.user)
+        r = self.c.post('/teams/api/create/', json.dumps({'name': 'Yes'}), content_type='application/json')
+        self.assertTrue(r.json()['ok'])
