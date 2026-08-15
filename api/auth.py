@@ -2,11 +2,10 @@
 API key authentication helpers.
 Usage: decorate views with @api_key_required
 """
-import hashlib
 from functools import wraps
 from django.http import JsonResponse
 from django.utils import timezone
-from .models import APIKey
+from .models import APIKey, hash_api_key
 
 
 def get_api_key(request):
@@ -18,12 +17,21 @@ def get_api_key(request):
 
 
 def authenticate_api_key(request):
-    """Return (user, api_key_obj) or (None, None)."""
+    """Return (user, api_key_obj) or (None, None).
+
+    Looks up by the SHA-256 hash of the presented key, never by plaintext —
+    the raw key itself was never stored server-side for keys created after
+    the hashing migration (api/migrations/0002_apikey_hashing.py backfilled
+    hashes for older keys from their still-present plaintext, so this one
+    lookup path works for keys created before or after that change).
+    is_active=True excludes revoked/inactive keys from ever authenticating.
+    """
     raw = get_api_key(request)
     if not raw:
         return None, None
+    key_hash = hash_api_key(raw)
     try:
-        key_obj = APIKey.objects.select_related('user').get(key=raw, is_active=True)
+        key_obj = APIKey.objects.select_related('user').get(key_hash=key_hash, is_active=True)
         # update last_used_at (non-blocking)
         APIKey.objects.filter(pk=key_obj.pk).update(last_used_at=timezone.now())
         return key_obj.user, key_obj
