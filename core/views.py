@@ -1,4 +1,13 @@
+import json
 from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
+from django.core.mail import send_mail, BadHeaderError
+from django.conf import settings
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
+
+from .models import ContactMessage
 
 ICONS = {
     'grid':   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>',
@@ -43,6 +52,49 @@ def about(request):
 
 def contact(request):
     return render(request, 'core/contact.html')
+
+
+@require_POST
+def contact_submit(request):
+    """
+    Real handler for the contact form -- previously the frontend faked a
+    success toast without ever submitting anything (found during a
+    site-wide page audit). Always saves the message (the durable record);
+    the notification email is best-effort and never blocks that save.
+    """
+    try:
+        payload = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid request.'}, status=400)
+
+    email   = payload.get('email', '').strip()
+    message = payload.get('message', '').strip()
+
+    if not email or not message:
+        return JsonResponse({'ok': False, 'error': 'Please fill in both fields.'}, status=400)
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse({'ok': False, 'error': 'That doesn\u2019t look like a valid email.'}, status=400)
+    if len(message) > 4000:
+        return JsonResponse({'ok': False, 'error': 'Message is too long.'}, status=400)
+
+    ContactMessage.objects.create(email=email, message=message)
+
+    notify_to = getattr(settings, 'CONTACT_NOTIFY_EMAIL', '')
+    if notify_to:
+        try:
+            send_mail(
+                subject=f'New contact form message from {email}',
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[notify_to],
+                fail_silently=True,  # the message is already saved; don't fail the request over email delivery
+            )
+        except BadHeaderError:
+            pass
+
+    return JsonResponse({'ok': True, 'message': 'Message sent! We will reply within 24h.'})
 
 
 def faq(request):
