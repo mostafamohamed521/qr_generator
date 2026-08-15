@@ -9,24 +9,59 @@
 </section>
 <div class="auth-wrap" style="display:flex;justify-content:center">
   <form class="auth-card" id="contact-form" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px;box-shadow:var(--shadow);max-width:460px;width:100%">
+    {% csrf_token %}
     <div class="auth-field">
       <label>{% trans "Your email" %}</label>
-      <input type="email" class="fi" placeholder="you@example.com" required>
+      <input type="email" id="contact-email" class="fi" placeholder="you@example.com" required>
     </div>
     <div class="auth-field">
       <label>{% trans "Message" %}</label>
-      <textarea class="ft" rows="4" placeholder="{% trans 'How can we help?' %}" required></textarea>
+      <textarea id="contact-message" class="ft" rows="4" placeholder="{% trans 'How can we help?' %}" required></textarea>
     </div>
-    <button type="submit" class="btn-primary" style="width:100%">{% trans "Send message" %}</button>
+    <div id="contact-error" style="color:var(--danger);font-size:.8rem;margin-bottom:10px;display:none"></div>
+    <button type="submit" id="contact-submit-btn" class="btn-primary" style="width:100%">{% trans "Send message" %}</button>
   </form>
 </div>
 {% endblock %}
 {% block extra_js %}
 <script>
-document.getElementById('contact-form').addEventListener('submit', e => {
+function csrfToken() {
+  return document.querySelector('[name=csrfmiddlewaretoken]')?.value
+    || document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+}
+
+document.getElementById('contact-form').addEventListener('submit', async e => {
   e.preventDefault();
-  window.showToast('{% trans "Message sent! We will reply within 24h." %}', 'ok');
-  e.target.reset();
+  const btn   = document.getElementById('contact-submit-btn');
+  const errEl = document.getElementById('contact-error');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  try {
+    const res  = await fetch('{% url "core:contact_submit" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify({
+        email: document.getElementById('contact-email').value.trim(),
+        message: document.getElementById('contact-message').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.showToast(data.message, 'ok');
+      e.target.reset();
+    } else {
+      errEl.textContent = data.error;
+      errEl.style.display = 'block';
+    }
+  } catch {
+    errEl.textContent = '{% trans "Connection error — please try again." %}';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
 });
 </script>
 {% endblock %}
