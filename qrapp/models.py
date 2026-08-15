@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -13,6 +14,13 @@ class QRCode(models.Model):
         ('location', 'Location'),
     ]
 
+    # Nullable for now so this migration is safe to run against a database that
+    # already has rows (pre-ownership data has no owner). The application layer
+    # never serves or lets a request touch a QRCode with user=None; once a
+    # backfill/cleanup has run in your environment, this can be tightened to
+    # null=False in a follow-up migration.
+    user       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                    related_name='qr_codes', null=True, blank=True)
     qr_type    = models.CharField(max_length=20, choices=TYPE_CHOICES)
     label      = models.CharField(max_length=120, blank=True, default='')
     content    = models.TextField()
@@ -51,6 +59,9 @@ def _gen_code():
 
 class DynamicLink(models.Model):
     """A QR code whose destination URL can be edited without reprinting."""
+    # See QRCode.user for why this is nullable.
+    user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                     related_name='dynamic_links', null=True, blank=True)
     short_code  = models.CharField(max_length=20, unique=True, default=_gen_code, db_index=True)
     label       = models.CharField(max_length=120, blank=True, default='')
     target_url  = models.URLField(max_length=2000)
