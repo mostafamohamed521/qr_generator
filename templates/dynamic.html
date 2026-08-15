@@ -129,8 +129,15 @@ const DAPI = `${window.APP_BASE}api/dynamic/`;
 
 // ── Load list ────────────────────────────────────────────────────────────────
 async function loadDynamic() {
-  const res  = await fetch(DAPI);
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(DAPI);
+    data = await res.json();
+  } catch {
+    document.getElementById('dyn-grid').innerHTML =
+      '<div class="empty-state" style="grid-column:1/-1"><p>Connection error — could not load your dynamic links.</p></div>';
+    return;
+  }
   const grid = document.getElementById('dyn-grid');
   if (!data.ok || data.links.length === 0) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
@@ -209,12 +216,19 @@ async function createDynamic() {
   errEl.style.display = 'none';
   btn.disabled = true;
 
-  const res  = await fetch(`${DAPI}create/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-    body: JSON.stringify({ target_url: url, label, qr_color: color, bg_color: bg, qr_style: style }),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`${DAPI}create/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify({ target_url: url, label, qr_color: color, bg_color: bg, qr_style: style }),
+    });
+    data = await res.json();
+  } catch {
+    btn.disabled = false;
+    toast('Connection error — please try again.', 'err');
+    return;
+  }
   btn.disabled = false;
 
   if (data.ok) {
@@ -242,12 +256,18 @@ async function saveDynamic() {
   const label    = document.getElementById('edit-label').value.trim();
   const isActive = document.getElementById('edit-active').checked;
 
-  const res  = await fetch(`${DAPI}${id}/update/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-    body: JSON.stringify({ target_url: url, label, is_active: isActive }),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`${DAPI}${id}/update/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify({ target_url: url, label, is_active: isActive }),
+    });
+    data = await res.json();
+  } catch {
+    toast('Connection error — please try again.', 'err');
+    return;
+  }
   if (data.ok) {
     closeModal('edit-modal');
     toast('Saved!', 'ok');
@@ -260,11 +280,17 @@ async function saveDynamic() {
 // ── Delete ───────────────────────────────────────────────────────────────────
 async function deleteDynamic(id) {
   if (!confirm('Delete this dynamic QR link and all its scan data?')) return;
-  const res  = await fetch(`${DAPI}${id}/delete/`, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': csrfToken() },
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`${DAPI}${id}/delete/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken() },
+    });
+    data = await res.json();
+  } catch {
+    toast('Connection error — please try again.', 'err');
+    return;
+  }
   if (data.ok) {
     document.getElementById(`dcard-${id}`)?.remove();
     toast('Deleted', 'ok');
@@ -278,8 +304,15 @@ async function openStats(id) {
   document.getElementById('stats-modal').classList.add('open');
   document.getElementById('stats-body').innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
 
-  const res  = await fetch(`${DAPI}${id}/stats/`);
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`${DAPI}${id}/stats/`);
+    data = await res.json();
+  } catch {
+    document.getElementById('stats-body').innerHTML =
+      '<p style="color:var(--danger)">Connection error — could not load stats.</p>';
+    return;
+  }
 
   document.getElementById('stats-title').textContent = data.label || 'Scan Analytics';
 
