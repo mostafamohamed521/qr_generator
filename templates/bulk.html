@@ -240,6 +240,9 @@ async function runBulk() {
       if (data.ok) {
         bulkResults.push(...data.results);
         appendResults(data.results);
+      } else {
+        toast(data.error || 'Bulk generation failed', 'err');
+        break;  // quota exhausted (or other rejection) — later chunks would fail too
       }
     } catch { toast('Network error on chunk ' + (i / CHUNK + 1), 'err'); }
 
