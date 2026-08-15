@@ -18,10 +18,12 @@ _lock   = Lock()
 
 # Endpoint patterns and their limits (requests per 60 s)
 _LIMITS = {
-    '/api/generate/':  getattr(settings, 'RATE_LIMIT_GENERATE', 30),
-    '/api/bulk/':      getattr(settings, 'RATE_LIMIT_GENERATE', 30),
-    '/accounts/login/':    getattr(settings, 'RATE_LIMIT_AUTH', 10),
-    '/accounts/register/': getattr(settings, 'RATE_LIMIT_AUTH', 10),
+    '/api/generate/':       getattr(settings, 'RATE_LIMIT_GENERATE', 30),
+    '/api/bulk/':           getattr(settings, 'RATE_LIMIT_GENERATE', 30),
+    '/accounts/login/':     getattr(settings, 'RATE_LIMIT_AUTH', 10),
+    '/accounts/register/':  getattr(settings, 'RATE_LIMIT_AUTH', 10),
+    '/accounts/2fa/verify/': getattr(settings, 'RATE_LIMIT_AUTH', 10),
+    '/accounts/forgot-password/': getattr(settings, 'RATE_LIMIT_AUTH', 10),
 }
 _GLOBAL_LIMIT = getattr(settings, 'RATE_LIMIT_GLOBAL', 200)
 _WINDOW       = 60   # seconds
@@ -37,12 +39,14 @@ class RateLimitMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method in ('POST', 'GET') and request.path.startswith('/app/api'):
+        if request.method in ('POST', 'GET'):
             ip    = _get_ip(request)
             now   = time.monotonic()
             key   = ip
 
-            # per-endpoint limit
+            # Per-endpoint limit. Matched by substring (not startswith/prefix)
+            # so this still applies under the i18n URL prefix (e.g.
+            # /ar/accounts/login/), which a startswith check would miss.
             for pattern, limit in _LIMITS.items():
                 if pattern in request.path:
                     ekey = f'{ip}:{pattern}'
@@ -53,12 +57,13 @@ class RateLimitMiddleware:
                             status=429,
                         )
 
-            # global API limit
-            if self._is_limited(key, now, _GLOBAL_LIMIT):
-                return JsonResponse(
-                    {'ok': False, 'error': 'Too many requests.'},
-                    status=429,
-                )
+            # global API limit — only for the app's own API surface
+            if '/app/api' in request.path:
+                if self._is_limited(key, now, _GLOBAL_LIMIT):
+                    return JsonResponse(
+                        {'ok': False, 'error': 'Too many requests.'},
+                        status=429,
+                    )
 
         return self.get_response(request)
 
