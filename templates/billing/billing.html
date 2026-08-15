@@ -156,8 +156,14 @@
 {% block extra_js %}
 <script>
 async function loadPlan() {
-  const res  = await fetch('{% url "billing:current_plan" %}');
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('{% url "billing:current_plan" %}');
+    data = await res.json();
+  } catch {
+    window.showToast('Connection error — could not load your plan.', 'err');
+    return;
+  }
   if (!data.ok) return;
   const s = data.subscription;
 
@@ -199,14 +205,25 @@ async function upgradePlan(plan) {
   const btns = document.querySelectorAll('.btn-gen');
   btns.forEach(b => { b.classList.add('loading'); b.disabled = true; });
 
-  const res  = await fetch('{% url "billing:upgrade" %}', {
-    method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
-    body: JSON.stringify({plan}),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('{% url "billing:upgrade" %}', {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body: JSON.stringify({plan}),
+    });
+    data = await res.json();
+  } catch {
+    btns.forEach(b => { b.classList.remove('loading'); b.disabled = false; });
+    window.showToast('Connection error — please try again.', 'err');
+    return;
+  }
 
   btns.forEach(b => { b.classList.remove('loading'); b.disabled = false; });
 
+  if (data.ok && data.checkout_url) {
+    window.location.href = data.checkout_url;  // hand off to Stripe Checkout
+    return;
+  }
   if (data.ok) {
     window.showToast(data.message, 'ok');
     setTimeout(() => location.reload(), 1200);
@@ -217,10 +234,16 @@ async function upgradePlan(plan) {
 
 async function cancelPlan() {
   if (!confirm('Downgrade to Free? You\'ll lose Pro features at the end of your billing period.')) return;
-  const res  = await fetch('{% url "billing:cancel" %}', {
-    method:'POST', headers:{'X-CSRFToken':csrfToken()},
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('{% url "billing:cancel" %}', {
+      method:'POST', headers:{'X-CSRFToken':csrfToken()},
+    });
+    data = await res.json();
+  } catch {
+    window.showToast('Connection error — please try again.', 'err');
+    return;
+  }
   if (data.ok) { window.showToast(data.message, 'ok'); setTimeout(() => location.reload(), 1200); }
   else window.showToast(data.error, 'err');
 }
@@ -230,5 +253,17 @@ function csrfToken() {
 }
 
 loadPlan();
+
+// Coming back from Stripe Checkout. This does NOT assume payment
+// succeeded -- it's just a courtesy message; loadPlan() above already
+// re-reads the real subscription state from the server, which only ever
+// changes once the webhook applies a verified Stripe event (possibly a
+// few seconds after the redirect back here).
+const checkoutParam = new URLSearchParams(window.location.search).get('checkout');
+if (checkoutParam === 'success') {
+  window.showToast('Payment received — your plan will update in a moment.', 'ok');
+} else if (checkoutParam === 'cancelled') {
+  window.showToast('Checkout cancelled.', 'err');
+}
 </script>
 {% endblock %}
