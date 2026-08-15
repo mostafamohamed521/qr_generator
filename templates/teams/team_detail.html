@@ -1,8 +1,198 @@
 {% extends 'base.html' %}
 {% block title %}{{ team.name }}{% endblock %}
+{% block nav_teams %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.team-avatar-lg { width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1.6rem; color:#fff; }
+.role-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:.68rem; font-weight:700; }
+.role-owner { background:rgba(240,196,25,.15); color:#c9980a; }
+.role-admin { background:rgba(109,77,251,.12); color:var(--accent); }
+.role-member { background:var(--hover); color:var(--text-muted); }
+.member-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.member-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.8rem; color:#fff; flex-shrink:0; }
+.member-info { flex:1; min-width:0; }
+.member-name { font-weight:600; font-size:.84rem; }
+.member-email { font-size:.72rem; color:var(--text-muted); }
+.audit-entry { padding:8px 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+.audit-action { font-weight:600; color:var(--text); }
+.audit-meta  { font-size:.72rem; color:var(--text-muted); margin-top:2px; }
+.detail-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px; box-shadow:var(--shadow); margin-bottom:20px; }
+.mf label { display:block; font-size:.82rem; font-weight:600; margin-bottom:6px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="header">
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">{{ team.name }}</h1>
-  <p><a href="{% url 'teams:teams' %}" style="color:var(--accent)">← Back to teams</a></p>
+<div class="header" style="margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="team-avatar-lg">{{ team.name|slice:":1"|upper }}</div>
+    <div>
+      <p style="margin-bottom:4px"><a href="{% url 'teams:teams' %}" style="color:var(--accent);font-size:.82rem">← Back to teams</a></p>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800">{{ team.name }}</h1>
+      <span class="role-badge role-{{ my_role }}">{{ my_role|capfirst }}</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="act-btn" style="padding:9px 16px" onclick="switchToThisTeam()">Set as active team</button>
+    {% if is_owner %}
+      <button class="act-btn danger" style="padding:9px 16px;color:var(--danger)" onclick="deleteThisTeam()">Delete team</button>
+    {% else %}
+      <button class="act-btn" style="padding:9px 16px" onclick="leaveThisTeam()">Leave team</button>
+    {% endif %}
+  </div>
 </div>
+
+<div class="detail-card">
+  <div style="font-weight:700;font-size:.95rem;margin-bottom:14px">Members</div>
+  <div id="members-list"><p style="color:var(--text-muted);font-size:.85rem">Loading…</p></div>
+  <div id="pending-list"></div>
+  <div id="invite-section"></div>
+</div>
+
+<div class="detail-card">
+  <div style="font-weight:700;font-size:.95rem;margin-bottom:14px">Activity log</div>
+  <div id="audit-list"><p style="color:var(--text-muted);font-size:.85rem">Loading…</p></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Reuses the exact same /teams/api/ endpoints as the teams.html team-card
+// modal — no duplicated backend logic, this is just a full-page,
+// deep-linkable/bookmarkable rendering of the same data and actions.
+const TEAM_ID  = {{ team.id }};
+const TAPI     = '/teams/api/';
+
+async function loadMembers() {
+  const [mRes, aRes] = await Promise.all([
+    fetch(`${TAPI}${TEAM_ID}/members/`),
+    fetch(`${TAPI}${TEAM_ID}/audit/`),
+  ]);
+  const mData = await mRes.json();
+  const aData = await aRes.json();
+  if (!mData.ok) { document.getElementById('members-list').innerHTML = `<p style="color:var(--danger)">${esc(mData.error||'Failed to load')}</p>`; return; }
+
+  const isAdmin = mData.is_admin;
+
+  document.getElementById('members-list').innerHTML = mData.members.map(m => `
+    <div class="member-row">
+      <div class="member-avatar">${esc(m.username[0].toUpperCase())}</div>
+      <div class="member-info">
+        <div class="member-name">${esc(m.username)}</div>
+        <div class="member-email">${esc(m.email)} · joined ${esc(m.joined)}</div>
+      </div>
+      <span class="role-badge role-${m.role}">${m.role}</span>
+      ${isAdmin && !m.is_me && m.role !== 'owner' ? `
+        <select class="history-filter" style="margin-left:6px;font-size:.72rem" onchange="changeRole(${m.id},this.value)">
+          <option value="member" ${m.role==='member'?'selected':''}>Member</option>
+          <option value="admin"  ${m.role==='admin' ?'selected':''}>Admin</option>
+        </select>
+        <button class="act-btn" style="padding:4px 8px;font-size:.68rem;color:var(--danger)" onclick="removeMember(${m.id},this)">✕</button>
+      ` : ''}
+    </div>`).join('');
+
+  document.getElementById('pending-list').innerHTML = mData.pending.length ? `
+    <div style="margin-top:14px">
+      <div style="font-size:.8rem;font-weight:600;margin-bottom:8px;color:var(--text-muted)">Pending invites</div>
+      ${mData.pending.map(p => `
+        <div style="font-size:.78rem;padding:4px 0;display:flex;align-items:center;gap:8px">
+          <span style="flex:1;color:var(--text-muted)">${esc(p.email)}</span>
+          <span class="role-badge role-${p.role}">${p.role}</span>
+          <span style="color:var(--text-muted)">${esc(p.date)}</span>
+        </div>`).join('')}
+    </div>` : '';
+
+  document.getElementById('invite-section').innerHTML = isAdmin ? `
+    <div style="margin-top:22px">
+      <div style="font-weight:700;font-size:.88rem;margin-bottom:10px">Invite someone</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="email" id="inv-email" class="fi" placeholder="colleague@example.com" style="flex:1;min-width:160px">
+        <select id="inv-role" class="history-filter">
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button class="act-btn" onclick="inviteMember()" style="padding:9px 14px;font-size:.82rem">Send invite</button>
+      </div>
+      <div id="inv-result" style="font-size:.74rem;margin-top:6px;color:var(--accent)"></div>
+    </div>` : '';
+
+  document.getElementById('audit-list').innerHTML = aData.ok && aData.entries.length
+    ? aData.entries.map(e => `
+      <div class="audit-entry">
+        <div class="audit-action">${esc(e.action.replace('.',' › '))}</div>
+        <div class="audit-meta">${esc(e.user)} · ${esc(e.timestamp)}</div>
+      </div>`).join('')
+    : '<p style="color:var(--text-muted);font-size:.82rem">No activity yet</p>';
+}
+
+async function inviteMember() {
+  const email = document.getElementById('inv-email').value.trim();
+  const role  = document.getElementById('inv-role').value;
+  if (!email) return;
+  const res  = await fetch(`${TAPI}${TEAM_ID}/invite/`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+    body: JSON.stringify({ email, role }),
+  });
+  const data = await res.json();
+  const el   = document.getElementById('inv-result');
+  if (data.ok) {
+    el.style.color = 'var(--accent)';
+    el.textContent = data.auto_added
+      ? `✓ ${email} was added directly (they already have an account).`
+      : `✓ Invite created. Share this link: ${data.invite_url}`;
+    document.getElementById('inv-email').value = '';
+    loadMembers();
+  } else {
+    el.style.color = 'var(--danger)';
+    el.textContent = data.error;
+  }
+}
+
+async function changeRole(userId, newRole) {
+  const res  = await fetch(`${TAPI}${TEAM_ID}/role/${userId}/`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+    body: JSON.stringify({ role: newRole }),
+  });
+  const data = await res.json();
+  if (data.ok) window.showToast('Role updated', 'ok'); else window.showToast(data.error, 'err');
+}
+
+async function removeMember(userId, btn) {
+  if (!confirm('Remove this member?')) return;
+  const res  = await fetch(`${TAPI}${TEAM_ID}/remove/${userId}/`, {
+    method: 'POST', headers: { 'X-CSRFToken': csrfToken() },
+  });
+  const data = await res.json();
+  if (data.ok) { window.showToast('Removed', 'ok'); btn.closest('.member-row').remove(); }
+  else window.showToast(data.error, 'err');
+}
+
+async function switchToThisTeam() {
+  const res = await fetch(`${TAPI}${TEAM_ID}/switch/`, { method:'POST', headers:{'X-CSRFToken':csrfToken()} });
+  const data = await res.json();
+  if (data.ok) window.showToast(`Switched to ${data.team_name}`, 'ok');
+  else window.showToast(data.error, 'err');
+}
+
+async function leaveThisTeam() {
+  if (!confirm('Leave this team?')) return;
+  const res = await fetch(`${TAPI}${TEAM_ID}/leave/`, { method:'POST', headers:{'X-CSRFToken':csrfToken()} });
+  const data = await res.json();
+  if (data.ok) { window.showToast('Left team', 'ok'); window.location.href = '{% url "teams:teams" %}'; }
+  else window.showToast(data.error, 'err');
+}
+
+async function deleteThisTeam() {
+  if (!confirm('Permanently delete this team and all its data?')) return;
+  const res = await fetch(`${TAPI}${TEAM_ID}/delete/`, { method:'POST', headers:{'X-CSRFToken':csrfToken()} });
+  const data = await res.json();
+  if (data.ok) { window.showToast('Team deleted', 'ok'); window.location.href = '{% url "teams:teams" %}'; }
+  else window.showToast(data.error, 'err');
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function csrfToken() { return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||''; }
+
+loadMembers();
+</script>
 {% endblock %}
