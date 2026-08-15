@@ -72,9 +72,15 @@
 let currentPage = 1;
 
 async function loadUsers() {
-  const q    = document.getElementById('search').value.trim();
-  const res  = await fetch(`{% url 'dashboard:users_list' %}?page=${currentPage}&q=${encodeURIComponent(q)}`);
-  const data = await res.json();
+  const q = document.getElementById('search').value.trim();
+  let data;
+  try {
+    const res = await fetch(`{% url 'dashboard:users_list' %}?page=${currentPage}&q=${encodeURIComponent(q)}`);
+    data = await res.json();
+  } catch {
+    window.showToast('Connection error — could not load users.', 'err');
+    return;
+  }
   if (!data.ok) return;
 
   document.getElementById('count-lbl').textContent = `${data.total} users total`;
@@ -121,12 +127,18 @@ function goPage(delta) {
 }
 
 async function toggleActive(id, newState) {
-  const res  = await fetch(`/dashboard/api/users/${id}/toggle/`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
-    body: JSON.stringify({is_active: newState}),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`/dashboard/api/users/${id}/toggle/`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body: JSON.stringify({is_active: newState}),
+    });
+    data = await res.json();
+  } catch {
+    toast('Connection error — please try again.', 'err');
+    return;
+  }
   if (data.ok) {
     const badge = document.getElementById(`badge-active-${id}`);
     badge.className = `badge ${data.is_active ? 'badge-active' : 'badge-inactive'}`;
@@ -136,22 +148,34 @@ async function toggleActive(id, newState) {
 }
 
 async function toggleStaff(id, newState) {
-  const res  = await fetch(`/dashboard/api/users/${id}/toggle/`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
-    body: JSON.stringify({is_staff: newState}),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`/dashboard/api/users/${id}/toggle/`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body: JSON.stringify({is_staff: newState}),
+    });
+    data = await res.json();
+  } catch {
+    toast('Connection error — please try again.', 'err');
+    return;
+  }
   if (data.ok) { toast(newState ? 'Staff granted' : 'Staff removed', 'ok'); loadUsers(); }
   else toast(data.error, 'err');
 }
 
 async function deleteUser(id, email) {
   if (!confirm(`Permanently delete ${email} and all their data?`)) return;
-  const res  = await fetch(`/dashboard/api/users/${id}/delete/`, {
-    method:'POST', headers:{'X-CSRFToken':csrfToken()},
-  });
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`/dashboard/api/users/${id}/delete/`, {
+      method:'POST', headers:{'X-CSRFToken':csrfToken()},
+    });
+    data = await res.json();
+  } catch {
+    toast('Connection error — please try again.', 'err');
+    return;
+  }
   if (data.ok) {
     document.getElementById(`urow-${id}`)?.remove();
     toast('User deleted', 'ok');
