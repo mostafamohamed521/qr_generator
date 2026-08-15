@@ -16,6 +16,16 @@ def _is_admin(team, user):
     return TeamMember.objects.filter(team=team, user=user, role__in=['owner', 'admin']).exists()
 
 
+def _plan_allows_team(user):
+    """Free plan doesn't include team features — enforce server-side, not
+    just by hiding the 'Create team' button in the UI."""
+    from billing.models import Subscription
+    try:
+        return Subscription.objects.select_related('plan').get(user=user).plan.allows_team
+    except Subscription.DoesNotExist:
+        return False  # no subscription row yet = free tier = no teams
+
+
 def _log(user, team, action, meta=None):
     AuditLogEntry.objects.create(user=user, team=team, action=action, metadata=meta or {})
 
@@ -29,10 +39,15 @@ def teams_page(request):
 @login_required
 def team_detail(request, slug):
     team = get_object_or_404(Team, slug=slug)
-    if not TeamMember.objects.filter(team=team, user=request.user).exists():
+    membership = TeamMember.objects.filter(team=team, user=request.user).first()
+    if not membership:
         from django.http import Http404
         raise Http404
-    return render(request, 'teams/team_detail.html', {'team': team})
+    return render(request, 'teams/team_detail.html', {
+        'team': team,
+        'my_role': membership.role,
+        'is_owner': team.owner_id == request.user.id,
+    })
 
 
 # ── API: my teams ─────────────────────────────────────────────────────────────
@@ -56,6 +71,8 @@ def my_teams(request):
 @login_required
 @require_POST
 def create_team(request):
+    if not _plan_allows_team(request.user):
+        return JsonResponse({'ok': False, 'error': 'Team collaboration requires the Pro plan.'}, status=403)
     try:
         payload = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
