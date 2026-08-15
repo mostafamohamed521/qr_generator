@@ -103,6 +103,7 @@ async function loadTeams() {
       <div style="display:flex;align-items:center;justify-content:space-between">
         <span class="role-badge role-${t.role}">${t.role.charAt(0).toUpperCase() + t.role.slice(1)}</span>
         <div class="team-actions" onclick="event.stopPropagation()">
+          <a class="act-btn" style="padding:5px 10px;font-size:.72rem" href="/teams/${t.slug}/">Open</a>
           ${!t.active ? `<button class="act-btn" style="padding:5px 10px;font-size:.72rem" onclick="switchTeam(${t.id})">Switch</button>` : ''}
           ${t.role === 'owner' ? `<button class="act-btn danger" style="padding:5px 10px;font-size:.72rem;color:var(--danger)" onclick="deleteTeam(${t.id})">Delete</button>` : `<button class="act-btn" style="padding:5px 10px;font-size:.72rem" onclick="leaveTeam(${t.id})">Leave</button>`}
         </div>
