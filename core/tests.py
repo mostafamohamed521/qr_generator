@@ -36,6 +36,39 @@ class LandingPageTests(TestCase):
         r = self.c.get('/contact/')
         self.assertEqual(r.status_code, 200)
 
+    def test_contact_submit_saves_message(self):
+        """Was previously a fake success toast that never sent anything
+        anywhere — found during a full page audit and given a real backend."""
+        from core.models import ContactMessage
+        import json
+        r = self.c.post('/contact/submit/',
+            json.dumps({'email': 'visitor@example.com', 'message': 'Hello there'}),
+            content_type='application/json')
+        d = r.json()
+        self.assertTrue(d['ok'])
+        self.assertEqual(ContactMessage.objects.count(), 1)
+        msg = ContactMessage.objects.get()
+        self.assertEqual(msg.email, 'visitor@example.com')
+        self.assertEqual(msg.message, 'Hello there')
+
+    def test_contact_submit_rejects_invalid_email(self):
+        import json
+        r = self.c.post('/contact/submit/',
+            json.dumps({'email': 'not-an-email', 'message': 'Hi'}),
+            content_type='application/json')
+        self.assertFalse(r.json()['ok'])
+
+    def test_contact_submit_rejects_empty_message(self):
+        import json
+        r = self.c.post('/contact/submit/',
+            json.dumps({'email': 'visitor@example.com', 'message': ''}),
+            content_type='application/json')
+        self.assertFalse(r.json()['ok'])
+
+    def test_contact_submit_get_not_allowed(self):
+        r = self.c.get('/contact/submit/')
+        self.assertEqual(r.status_code, 405)
+
     def test_robots_txt(self):
         r = self.c.get('/robots.txt')
         self.assertEqual(r.status_code, 200)
