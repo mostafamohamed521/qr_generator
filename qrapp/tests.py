@@ -1,15 +1,29 @@
 """
 tests.py — full test suite for QR Forge
 Run: python manage.py test qrapp -v 2
+
+NOTE: ViewTests/DynamicQRTests/HistorySearchTests originally used an
+anonymous (unauthenticated) Client() against every endpoint here. That was
+correct when this file was written, but every one of these endpoints
+(generate, history, delete, clear, dynamic/*, export-csv) has required a
+logged-in user and per-user ownership scoping since the qrapp ownership/
+IDOR pilot — the very first phase of this audit. This file was never
+updated at the time, so it's been silently failing since then. Fixed below
+by logging a user in for every test that hits an authenticated endpoint;
+the two dynamic_redirect tests are correctly left anonymous, since that
+endpoint is meant to be public (anyone scanning the code, not just its
+owner, needs to be redirected).
 """
 from django.test import TestCase, Client
-from .models import QRCode
+from django.contrib.auth.models import User
+from .models import QRCode, DynamicLink
 from .qr_utils import (generate_qr_image,
                        build_url, build_vcard, build_wifi,
                        build_sms, build_email, build_phone, build_location)
 
 
 # ── qr_utils tests ─────────────────────────────────────────────────────────
+# Pure functions, no auth/DB involved — unaffected by any of this, unchanged.
 
 class QRUtilsTests(TestCase):
 
@@ -73,8 +87,11 @@ class QRUtilsTests(TestCase):
 
 class ModelTests(TestCase):
 
+    def setUp(self):
+        self.user = User.objects.create_user('modeltest@example.com', 'modeltest@example.com', 'pass12345')
+
     def _make(self, **kw):
-        defaults = dict(qr_type='url', content='https://example.com')
+        defaults = dict(user=self.user, qr_type='url', content='https://example.com')
         defaults.update(kw)
         return QRCode.objects.create(**defaults)
 
@@ -114,14 +131,26 @@ class ViewTests(TestCase):
 
     def setUp(self):
         self.c = Client()
+        self.user = User.objects.create_user('viewtest@example.com', 'viewtest@example.com', 'pass12345')
+        self.c.login(username='viewtest@example.com', password='pass12345')
 
     # index
     def test_index_ok(self):
         self.assertEqual(self.c.get('/app/').status_code, 200)
 
+    def test_index_requires_login(self):
+        c2 = Client()
+        r = c2.get('/app/')
+        self.assertEqual(r.status_code, 302)
+
     # generate – method guard
     def test_generate_get_405(self):
         self.assertEqual(self.c.get('/app/api/generate/').status_code, 405)
+
+    def test_generate_requires_login(self):
+        c2 = Client()
+        r = c2.post('/app/api/generate/', {'type': 'url', 'url': 'https://example.com'})
+        self.assertEqual(r.status_code, 401)  # json_login_required -> 401, not a redirect
 
     # generate – all 8 types
     def _gen(self, payload):
@@ -181,11 +210,12 @@ class ViewTests(TestCase):
         d = self._gen({'type': 'email', 'email': 'bad', 'subject': '', 'body': ''})
         self.assertFalse(d['ok'])
 
-    # generate – saves to DB with image
+    # generate – saves to DB with image, owned by the requesting user
     def test_saves_to_db(self):
         self._gen({'type': 'url', 'url': 'https://example.com', 'label': 'Test Label'})
         q = QRCode.objects.get()
         self.assertEqual(q.label, 'Test Label')
+        self.assertEqual(q.user, self.user)
         self.assertTrue(q.image_b64.startswith('data:image/png;base64,'))
 
     # generate – custom options saved
@@ -215,6 +245,13 @@ class ViewTests(TestCase):
     def test_history_get_only(self):
         self.assertEqual(self.c.post('/app/api/history/').status_code, 405)
 
+    def test_history_only_shows_own_codes(self):
+        """IDOR check: history must not leak another user's QR codes."""
+        other = User.objects.create_user('otherviewer@example.com', 'otherviewer@example.com', 'pass12345')
+        QRCode.objects.create(user=other, qr_type='text', content='not yours')
+        d = self.c.get('/app/api/history/').json()
+        self.assertEqual(d['items'], [])
+
     # delete
     def test_delete(self):
         self._gen({'type': 'text', 'text': 'x'})
@@ -227,6 +264,13 @@ class ViewTests(TestCase):
         d = self.c.post('/app/api/delete/99999/').json()
         self.assertFalse(d['ok'])
 
+    def test_cannot_delete_another_users_qrcode(self):
+        other = User.objects.create_user('otherdeleter@example.com', 'otherdeleter@example.com', 'pass12345')
+        q = QRCode.objects.create(user=other, qr_type='text', content='not yours')
+        d = self.c.post(f'/app/api/delete/{q.pk}/').json()
+        self.assertFalse(d['ok'])
+        self.assertTrue(QRCode.objects.filter(pk=q.pk).exists())
+
     # clear
     def test_clear(self):
         self._gen({'type': 'text', 'text': 'a'})
@@ -234,15 +278,64 @@ class ViewTests(TestCase):
         self.c.post('/app/api/clear/')
         self.assertEqual(QRCode.objects.count(), 0)
 
+    def test_clear_only_clears_own_codes(self):
+        other = User.objects.create_user('otherclearer@example.com', 'otherclearer@example.com', 'pass12345')
+        QRCode.objects.create(user=other, qr_type='text', content='not yours')
+        self._gen({'type': 'text', 'text': 'mine'})
+        self.c.post('/app/api/clear/')
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 0)
+        self.assertEqual(QRCode.objects.filter(user=other).count(), 1)  # untouched
 
-# ── Sprint 4: Dynamic QR tests ────────────────────────────────────────────────
-from .models import DynamicLink
 
+# ── Quota enforcement ─────────────────────────────────────────────────────────
+
+class QuotaTests(TestCase):
+
+    def setUp(self):
+        self.c = Client()
+        self.user = User.objects.create_user('quotaview@example.com', 'quotaview@example.com', 'pass12345')
+        self.c.login(username='quotaview@example.com', password='pass12345')
+        from billing.models import Plan, Subscription
+        self.plan = Plan.objects.get(code='free')
+        self.sub = Subscription.objects.create(user=self.user, plan=self.plan, status='active')
+
+    def test_blocked_once_at_limit(self):
+        self.plan.max_qr_per_month = 2
+        self.plan.save()
+        for _ in range(2):
+            d = self.c.post('/app/api/generate/', {'type': 'text', 'text': 'x'}).json()
+            self.assertTrue(d['ok'])
+        r = self.c.post('/app/api/generate/', {'type': 'text', 'text': 'x'})
+        d = r.json()
+        self.assertFalse(d['ok'])
+        self.assertEqual(d['code'], 'quota_exceeded')
+        self.assertEqual(r.status_code, 429)
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 2)
+
+    def test_bulk_rejects_whole_batch_when_over_remaining(self):
+        """limit=100, used=95, bulk request=10 -> reject all 10, create none."""
+        self.plan.max_qr_per_month = 100
+        self.plan.save()
+        QRCode.objects.bulk_create([
+            QRCode(user=self.user, qr_type='text', content=f'existing {i}') for i in range(95)
+        ])
+        items = [{'content': f'new {i}'} for i in range(10)]
+        import json as jsonlib
+        r = self.c.post('/app/api/bulk/', jsonlib.dumps({'items': items}), content_type='application/json')
+        d = r.json()
+        self.assertFalse(d['ok'])
+        self.assertEqual(d['code'], 'quota_exceeded')
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 95)  # nothing added
+
+
+# ── Dynamic QR tests ────────────────────────────────────────────────────────
 
 class DynamicQRTests(TestCase):
 
     def setUp(self):
         self.c = Client()
+        self.user = User.objects.create_user('dyntest@example.com', 'dyntest@example.com', 'pass12345')
+        self.c.login(username='dyntest@example.com', password='pass12345')
 
     def test_create_dynamic_link(self):
         d = self.c.post('/app/api/dynamic/create/',
@@ -257,53 +350,83 @@ class DynamicQRTests(TestCase):
             data='{"target_url": "not-a-url"}', content_type='application/json').json()
         self.assertFalse(d['ok'])
 
+    def test_create_requires_login(self):
+        c2 = Client()
+        r = c2.post('/app/api/dynamic/create/',
+            data='{"target_url": "https://example.com"}', content_type='application/json')
+        self.assertEqual(r.status_code, 401)
+
+    # dynamic_redirect is deliberately public — anyone scanning the code
+    # needs to be redirected, not just the link's owner. Correctly
+    # unauthenticated, unlike everything else in this file.
     def test_redirect_increments_scan_count(self):
-        link = DynamicLink.objects.create(target_url='https://example.com')
+        link = DynamicLink.objects.create(user=self.user, target_url='https://example.com')
         self.assertEqual(link.scan_count, 0)
-        r = self.c.get(f'/r/{link.short_code}/')
+        anon = Client()
+        r = anon.get(f'/r/{link.short_code}/')
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.url, 'https://example.com')
         link.refresh_from_db()
         self.assertEqual(link.scan_count, 1)
 
     def test_redirect_inactive_link_404s(self):
-        link = DynamicLink.objects.create(target_url='https://example.com', is_active=False)
-        r = self.c.get(f'/r/{link.short_code}/')
+        link = DynamicLink.objects.create(user=self.user, target_url='https://example.com', is_active=False)
+        anon = Client()
+        r = anon.get(f'/r/{link.short_code}/')
         self.assertEqual(r.status_code, 404)
 
     def test_redirect_unknown_code_404s(self):
-        r = self.c.get('/r/doesnotexist/')
+        anon = Client()
+        r = anon.get('/r/doesnotexist/')
         self.assertEqual(r.status_code, 404)
 
     def test_update_changes_target(self):
-        link = DynamicLink.objects.create(target_url='https://old.com')
+        link = DynamicLink.objects.create(user=self.user, target_url='https://old.com')
         d = self.c.post(f'/app/api/dynamic/{link.pk}/update/',
             data='{"target_url": "https://new.com"}', content_type='application/json').json()
         self.assertTrue(d['ok'])
         link.refresh_from_db()
         self.assertEqual(link.target_url, 'https://new.com')
 
+    def test_cannot_update_another_users_link(self):
+        other = User.objects.create_user('otherdynupdate@example.com', 'otherdynupdate@example.com', 'pass12345')
+        link = DynamicLink.objects.create(user=other, target_url='https://old.com')
+        d = self.c.post(f'/app/api/dynamic/{link.pk}/update/',
+            data='{"target_url": "https://hijacked.com"}', content_type='application/json').json()
+        self.assertFalse(d['ok'])
+        link.refresh_from_db()
+        self.assertEqual(link.target_url, 'https://old.com')
+
     def test_delete_link(self):
-        link = DynamicLink.objects.create(target_url='https://example.com')
+        link = DynamicLink.objects.create(user=self.user, target_url='https://example.com')
         d = self.c.post(f'/app/api/dynamic/{link.pk}/delete/').json()
         self.assertTrue(d['ok'])
         self.assertEqual(DynamicLink.objects.count(), 0)
 
     def test_list_links(self):
-        DynamicLink.objects.create(target_url='https://a.com')
-        DynamicLink.objects.create(target_url='https://b.com')
+        DynamicLink.objects.create(user=self.user, target_url='https://a.com')
+        DynamicLink.objects.create(user=self.user, target_url='https://b.com')
         d = self.c.get('/app/api/dynamic/').json()
         self.assertTrue(d['ok'])
         self.assertEqual(len(d['links']), 2)
 
+    def test_list_only_shows_own_links(self):
+        other = User.objects.create_user('otherdynlist@example.com', 'otherdynlist@example.com', 'pass12345')
+        DynamicLink.objects.create(user=other, target_url='https://not-yours.com')
+        d = self.c.get('/app/api/dynamic/').json()
+        self.assertEqual(len(d['links']), 0)
 
-# ── Sprint 3: History search/filter/pagination ────────────────────────────────
+
+# ── History search/filter/pagination ────────────────────────────────
+
 class HistorySearchTests(TestCase):
 
     def setUp(self):
         self.c = Client()
-        QRCode.objects.create(qr_type='url', label='Google', content='https://google.com')
-        QRCode.objects.create(qr_type='text', label='Hello', content='Hello world')
+        self.user = User.objects.create_user('histsearch@example.com', 'histsearch@example.com', 'pass12345')
+        self.c.login(username='histsearch@example.com', password='pass12345')
+        QRCode.objects.create(user=self.user, qr_type='url', label='Google', content='https://google.com')
+        QRCode.objects.create(user=self.user, qr_type='text', label='Hello', content='Hello world')
 
     def test_search_by_label(self):
         d = self.c.get('/app/api/history/?q=Google').json()
@@ -316,7 +439,7 @@ class HistorySearchTests(TestCase):
 
     def test_pagination_page_size(self):
         for i in range(15):
-            QRCode.objects.create(qr_type='text', content=f'item {i}')
+            QRCode.objects.create(user=self.user, qr_type='text', content=f'item {i}')
         d = self.c.get('/app/api/history/?page=1').json()
         self.assertEqual(len(d['items']), 12)  # per_page = 12
         self.assertGreaterEqual(d['pages'], 2)
@@ -325,3 +448,8 @@ class HistorySearchTests(TestCase):
         r = self.c.get('/app/api/export-csv/')
         self.assertEqual(r.status_code, 200)
         self.assertIn('text/csv', r['Content-Type'])
+
+    def test_csv_export_requires_login(self):
+        c2 = Client()
+        r = c2.get('/app/api/export-csv/')
+        self.assertEqual(r.status_code, 302)  # export_csv uses @login_required (page-style), not json_login_required
