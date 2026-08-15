@@ -77,8 +77,14 @@
 {% block extra_js %}
 <script>
 async function loadAnalytics() {
-  const res  = await fetch(`${window.APP_BASE}api/analytics/`);
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`${window.APP_BASE}api/analytics/`);
+    data = await res.json();
+  } catch {
+    window.showToast('Connection error — could not load analytics.', 'err');
+    return;
+  }
   if (!data.ok) return;
 
   // stat cards
