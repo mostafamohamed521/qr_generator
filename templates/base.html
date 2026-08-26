@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="{% block meta_description %}Professional QR code generator — URL, WiFi, contact, bulk &amp; dynamic QR with analytics.{% endblock %}">
-  <meta name="theme-color" content="#6d4dfb">
+  <meta name="theme-color" content="#1b3358">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -17,7 +17,7 @@
   {% load static %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   <script>
     (function(){var t=localStorage.getItem('qr-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
@@ -37,30 +37,31 @@
     </svg>
     <span>QR Forge</span>
   </a>
-  <div class="nav-links">
+
+  <div class="nav-links" id="nav-links">
     <a href="{% url 'qrapp:index' %}" class="nav-link {% block nav_home %}{% endblock %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      {% trans "Generator" %}
+      <span>{% trans "Generator" %}</span>
     </a>
     <a href="{% url 'qrapp:analytics' %}" class="nav-link {% block nav_analytics %}{% endblock %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      {% trans "Analytics" %}
+      <span>{% trans "Analytics" %}</span>
     </a>
     <a href="{% url 'qrapp:dynamic' %}" class="nav-link {% block nav_dynamic %}{% endblock %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-      {% trans "Dynamic" %}
+      <span>{% trans "Dynamic" %}</span>
     </a>
     <a href="{% url 'teams:teams' %}" class="nav-link {% block nav_teams %}{% endblock %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      {% trans "Teams" %}
+      <span>{% trans "Teams" %}</span>
     </a>
     <a href="{% url 'qrapp:bulk' %}" class="nav-link {% block nav_bulk %}{% endblock %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>
-      {% trans "Bulk" %}
+      <span>{% trans "Bulk" %}</span>
     </a>
     <a href="{% url 'qrapp:scanner' %}" class="nav-link {% block nav_scanner %}{% endblock %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 7 4"/><polyline points="17 4 20 4 20 7"/><polyline points="20 17 20 20 17 20"/><polyline points="7 20 4 20 4 17"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
-      {% trans "Scanner" %}
+      <span>{% trans "Scanner" %}</span>
     </a>
 
     {% if user.is_authenticated %}
@@ -70,38 +71,35 @@
         {% else %}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         {% endif %}
-        {{ user.first_name|default:user.email }}
+        <span>{{ user.first_name|default:user.email }}</span>
       </a>
       {% if user.is_staff %}
       <a href="{% url 'dashboard:home' %}" class="nav-link" style="color:var(--accent-3)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        Admin
+        <span>Admin</span>
       </a>
       {% endif %}
-      <a href="{% url 'api:docs' %}" class="nav-link {% block nav_api %}{% endblock %}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
-        {% trans "API" %}
-      </a>
-      <a href="{% url 'billing:billing' %}" class="nav-link {% block nav_billing %}{% endblock %}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-        {% trans "Billing" %}
-      </a>
-      <a href="{% url 'accounts:logout' %}" class="nav-link">{% trans "Log out" %}</a>
+      <a href="{% url 'accounts:logout' %}" class="nav-link"><span>{% trans "Log out" %}</span></a>
     {% else %}
-      <a href="{% url 'accounts:login' %}" class="nav-link">{% trans "Log in" %}</a>
+      <a href="{% url 'accounts:login' %}" class="nav-link"><span>{% trans "Log in" %}</span></a>
     {% endif %}
 
     <form action="{% url 'set_language' %}" method="post" class="lang-form">
       {% csrf_token %}
-      <input type="hidden" name="next" value="{{ request.path }}">
+      <input type="hidden" name="next" value="{{ lang_toggle_next }}">
       <button type="submit" name="language" value="{% if LANGUAGE_CODE == 'ar' %}en{% else %}ar{% endif %}" class="theme-toggle" title="{% trans 'Switch language' %}">
         {% if LANGUAGE_CODE == 'ar' %}EN{% else %}AR{% endif %}
       </button>
     </form>
+  </div>
 
+  <div class="nav-controls">
     <button class="theme-toggle" id="theme-toggle" type="button" title="{% trans 'Toggle theme' %}" aria-label="Toggle dark/light theme">
       <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
       <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="mobile-menu-btn" id="mobile-menu-btn" type="button" aria-label="{% trans 'Menu' %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
   </div>
 </nav>
@@ -110,10 +108,25 @@
   {% block content %}{% endblock %}
 </div>
 
+<footer class="app-footer">
+  <div class="app-footer-links">
+    <a href="{% url 'api:docs' %}" class="{% block nav_api %}{% endblock %}">{% trans "API" %}</a>
+    <a href="{% url 'billing:billing' %}" class="{% block nav_billing %}{% endblock %}">{% trans "Billing" %}</a>
+    <a href="{% url 'core:faq' %}">{% trans "FAQ" %}</a>
+    <a href="{% url 'core:contact' %}">{% trans "Contact" %}</a>
+  </div>
+  <div class="app-footer-copy">© {% now "Y" %} QR Forge</div>
+</footer>
+
 <div id="toasts"></div>
 
 <script>window.APP_BASE = "{% url 'qrapp:index' %}";</script>
 <script src="{% static 'js/app.js' %}"></script>
+<script>
+document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+</script>
 {% block extra_js %}{% endblock %}
 
 {% if messages %}
