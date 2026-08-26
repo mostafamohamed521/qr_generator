@@ -41,9 +41,18 @@ def json_login_required(view_fn):
     return wrapper
 from .forms import (URLForm, TextForm, ContactForm, WiFiForm,
                     SMSForm, EmailForm, PhoneForm, LocationForm)
-from .qr_utils import (generate_qr_image, generate_qr_svg,
+from .qr_utils import (generate_qr_image, generate_qr_svg, QRContentTooLong,
                        build_url, build_vcard, build_wifi,
                        build_sms, build_email, build_phone, build_location)
+import re
+
+
+def _safe_filename(name, fallback):
+    """Strip anything that isn't safe in a Content-Disposition filename
+    (quotes, control/newline characters) so a crafted label can't break
+    the response header."""
+    name = re.sub(r'[\r\n"\\\x00-\x1f]', '', name or '').strip()
+    return name.replace(' ', '_') or fallback
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -165,7 +174,10 @@ def generate(request):
                 'remaining': max(remaining, 0),
             }, status=429)
 
-        image = generate_qr_image(content, size=size, color=color, bg=bg, style=style, logo_b64=logo)
+        try:
+            image = generate_qr_image(content, size=size, color=color, bg=bg, style=style, logo_b64=logo)
+        except QRContentTooLong as e:
+            return JsonResponse({'ok': False, 'error': str(e)}, status=400)
 
         QRCode.objects.create(
             user=request.user,
@@ -191,6 +203,9 @@ def history(request):
     if qr_type and qr_type != 'all':
         qs = qs.filter(qr_type=qr_type)
 
+    if request.GET.get('favorites') == '1':
+        qs = qs.filter(is_favorite=True)
+
     page     = max(1, int(request.GET.get('page', 1)))
     per_page = 12
     total    = qs.count()
@@ -208,8 +223,53 @@ def history(request):
         'bg_color':   q.bg_color,
         'content':    q.content,
         'scan_count': q.scan_count,
+        'is_favorite': q.is_favorite,
     } for q in qs]
     return JsonResponse({'ok': True, 'items': items, 'total': total, 'page': page, 'pages': pages})
+
+
+@require_POST
+@json_login_required
+def toggle_favorite(request, pk):
+    try:
+        q = QRCode.objects.get(pk=pk, user=request.user)
+    except QRCode.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
+    q.is_favorite = not q.is_favorite
+    q.save(update_fields=['is_favorite'])
+    return JsonResponse({'ok': True, 'is_favorite': q.is_favorite})
+
+
+@require_POST
+@json_login_required
+def duplicate(request, pk):
+    try:
+        src = QRCode.objects.get(pk=pk, user=request.user)
+    except QRCode.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Not found'}, status=404)
+
+    from billing.views import reserve_qr_quota
+    with transaction.atomic():
+        allowed, remaining = reserve_qr_quota(request.user, requested=1)
+        if not allowed:
+            return JsonResponse({
+                'ok': False, 'code': 'quota_exceeded',
+                'error': "You've reached your monthly QR code limit. Upgrade to Pro for unlimited codes.",
+                'remaining': max(remaining, 0),
+            }, status=429)
+
+        copy = QRCode.objects.create(
+            user=request.user,
+            qr_type=src.qr_type,
+            label=(src.label + ' (copy)')[:120] if src.label else '',
+            content=src.content,
+            qr_color=src.qr_color,
+            bg_color=src.bg_color,
+            qr_size=src.qr_size,
+            qr_style=src.qr_style,
+            image_b64=src.image_b64,
+        )
+    return JsonResponse({'ok': True, 'id': copy.id, 'image': copy.image_b64, 'label': copy.display_label()})
 
 
 @require_POST
@@ -355,8 +415,11 @@ def export_svg(request, pk):
     except QRCode.DoesNotExist:
         return HttpResponse('Not found', status=404)
 
-    svg_data = generate_qr_svg(q.content, color=q.qr_color, bg=q.bg_color)
-    filename = (q.label or f'qr-{pk}').replace(' ', '_')
+    try:
+        svg_data = generate_qr_svg(q.content, color=q.qr_color, bg=q.bg_color)
+    except QRContentTooLong:
+        return HttpResponse('Content too long to export', status=400)
+    filename = _safe_filename(q.label, f'qr-{pk}')
     response = HttpResponse(svg_data, content_type='image/svg+xml')
     response['Content-Disposition'] = f'attachment; filename="{filename}.svg"'
     return response
@@ -469,7 +532,7 @@ def dynamic_create(request):
         return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
 
     target_url = payload.get('target_url', '').strip()
-    if not target_url or not target_url.startswith(('http://', 'https://')):
+    if not target_url or not target_url.startswith(('http://', 'https://')) or len(target_url) > 2000:
         return JsonResponse({'ok': False, 'error': 'A valid URL is required'}, status=400)
 
     label     = payload.get('label', '').strip()[:120]
@@ -517,7 +580,7 @@ def dynamic_update(request, pk):
 
     target_url = payload.get('target_url', '').strip()
     if target_url:
-        if not target_url.startswith(('http://', 'https://')):
+        if not target_url.startswith(('http://', 'https://')) or len(target_url) > 2000:
             return JsonResponse({'ok': False, 'error': 'A valid URL is required'}, status=400)
         link.target_url = target_url
 
@@ -581,7 +644,7 @@ def save_scan(request):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
 
-    content = payload.get('content', '').strip()
+    content = payload.get('content', '').strip()[:2000]
     if not content:
         return JsonResponse({'ok': False, 'error': 'No content'}, status=400)
 
@@ -603,7 +666,10 @@ def save_scan(request):
     else:
         qr_type = 'text'
 
-    img = generate_qr_image(content, size=200)
+    try:
+        img = generate_qr_image(content, size=200)
+    except QRContentTooLong as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
     obj = QRCode.objects.create(
         user=request.user,
         qr_type=qr_type, label=f'Scanned: {content[:40]}',
