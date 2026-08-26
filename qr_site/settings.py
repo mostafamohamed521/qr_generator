@@ -1,7 +1,15 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load variables from a .env file at the project root into os.environ, if
+# one exists (a plain .env with no such loader was previously present in
+# this project and did nothing — every os.environ.get() below silently
+# fell back to its default regardless of what was in the file). Real
+# environment variables set outside .env still take precedence.
+load_dotenv(BASE_DIR / '.env')
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 # Default: prints emails to the console (safe for dev, no secrets needed).
@@ -28,9 +36,55 @@ CONTACT_NOTIFY_EMAIL = os.environ.get('DJANGO_CONTACT_NOTIFY_EMAIL', '')
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24  # 24 hours
 
 # ── Security ──────────────────────────────────────────────────────────────────
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-qr-forge-change-this-in-production-xyz-2024')
-DEBUG      = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
+
+_INSECURE_DEFAULT_KEY = 'django-insecure-qr-forge-change-this-in-production-xyz-2024'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _INSECURE_DEFAULT_KEY)
+if not DEBUG and SECRET_KEY == _INSECURE_DEFAULT_KEY:
+    # Refuse to boot in production with the shipped placeholder key — this
+    # key is public (it's in the repo), so leaving it in place lets anyone
+    # forge session cookies, password-reset tokens, and signed data.
+    raise RuntimeError(
+        'DJANGO_SECRET_KEY is not set. Generate one with: '
+        'python -c "from django.core.management.utils import get_random_secret_key; '
+        'print(get_random_secret_key())" and set it as an environment variable '
+        'before running with DJANGO_DEBUG=false.'
+    )
+
+_allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS', '').strip()
+if not DEBUG and not _allowed_hosts_env:
+    raise RuntimeError(
+        'DJANGO_ALLOWED_HOSTS is not set. In production this must be your '
+        'real domain(s), e.g. "yourdomain.com,www.yourdomain.com" — never "*".'
+    )
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()] or ['*']
+
+# Only trust X-Forwarded-For / X-Forwarded-Proto if you are actually behind a
+# reverse proxy that sets them itself (nginx config in DEPLOY.md does this)
+# and strips any client-supplied copy of these headers first. If this is on
+# and there's no such proxy, a client can spoof its own IP/scheme and bypass
+# rate limiting and HTTPS checks — leave this off unless you've verified that.
+TRUST_PROXY_HEADERS = os.environ.get('DJANGO_TRUST_PROXY_HEADERS', 'false').lower() == 'true'
+if TRUST_PROXY_HEADERS:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Comma-separated list of scheme+host origins allowed to POST cross-site
+# (needed behind a reverse proxy / custom domain per Django 4+ CSRF rules).
+_csrf_trusted = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').strip()
+if _csrf_trusted:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted.split(',') if o.strip()]
+
+# Cap request body size to stop memory-exhaustion DoS via oversized uploads
+# (profile pictures, bulk-generate payloads, etc). 5 MB is generous headroom
+# above any legitimate form/image on this site.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200
+
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY    = False  # JS reads this to set the X-CSRFToken header on fetch()
+X_FRAME_OPTIONS         = 'DENY'
+SECURE_REFERRER_POLICY  = 'same-origin'
 
 # Production security headers (set via env when deploying)
 if not DEBUG:
@@ -85,6 +139,7 @@ TEMPLATES = [{
         'django.contrib.auth.context_processors.auth',
         'django.contrib.messages.context_processors.messages',
         'django.template.context_processors.i18n',
+        'qr_site.context_processors.language_toggle',
     ]},
 }]
 
