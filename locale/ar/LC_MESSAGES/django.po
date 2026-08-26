@@ -730,3 +730,69 @@ msgstr "ابدأ التجربة المجانية"
 #: templates/core/pricing.html:29
 msgid "Full billing & checkout (Stripe) is built in Sprint 10."
 msgstr "نظام الفواتير والدفع الكامل (Stripe) يتم إنشاؤه في المرحلة 10."
+
+msgid "Dynamic QR codes"
+msgstr "أكواد QR ديناميكية"
+
+msgid "Change where a code points after it's printed — no need to reprint if a link changes."
+msgstr "غيّر وجهة الكود بعد طباعته — من غير ما تحتاج تعيد الطباعة لو الرابط اتغير."
+
+msgid "Built with security in mind"
+msgstr "مبني بعناية أمنية من الأساس"
+
+msgid "Not an afterthought — part of how the product is built."
+msgstr "مش إضافة لاحقة — جزء من طريقة بناء المنتج نفسه."
+
+msgid "Optional TOTP-based 2FA on every account, compatible with any authenticator app."
+msgstr "تحقق ثنائي اختياري (2FA) على كل حساب، متوافق مع أي تطبيق مصادقة."
+
+msgid "Rate-limited by design"
+msgstr "محمي من الطلبات المتكررة بشكل مدمج"
+
+msgid "Login, password reset, and API endpoints are all throttled against abuse."
+msgstr "تسجيل الدخول، وإعادة تعيين كلمة السر، ونقاط الـ API كلها محمية من إساءة الاستخدام."
+
+msgid "Signed webhooks"
+msgstr "ويبهوكس موقّعة"
+
+msgid "Every webhook delivery is HMAC-signed so you can verify it actually came from us."
+msgstr "كل إشعار ويبهوك موقّع بـ HMAC عشان تتأكد إنه فعلاً جاي منّا."
+
+msgid "What we believe"
+msgstr "إيه اللي بنؤمن بيه"
+
+msgid "Simple by default"
+msgstr "بسيط من الأساس"
+
+msgid "Generating a QR code should take seconds, not a tutorial. Advanced options are there when you need them — and out of the way when you don't."
+msgstr "توليد كود QR لازم ياخد ثواني، مش شرح طويل. الخيارات المتقدمة موجودة لما تحتاجها — ومش هتقابلك لو مش محتاجها."
+
+msgid "Your data is yours"
+msgstr "بياناتك ملكك"
+
+msgid "Export your QR codes to CSV any time, and delete your account and its data outright from your account settings — no support ticket required."
+msgstr "صدّر أكواد الـ QR بتاعتك لملف CSV في أي وقت، واحذف حسابك وبياناته نهائيًا من إعدادات حسابك — من غير ما تحتاج تفتح تذكرة دعم."
+
+msgid "Open, not locked-in"
+msgstr "مفتوح، مش مقفول عليك"
+
+msgid "A documented REST API means your QR codes and data are never trapped behind a UI — build on top of them however you like."
+msgstr "واجهة REST API موثّقة تعني إن أكواد الـ QR وبياناتك مش حبيسة خلف واجهة المستخدم — ابنِ عليها زي ما تحب."
+
+msgid "Try it yourself"
+msgstr "جرّبه بنفسك"
+
+msgid "Upgrade to Pro"
+msgstr "الترقية لـ Pro"
+
+msgid "Continue with Google (coming soon)"
+msgstr "المتابعة عبر جوجل (قريبًا)"
+
+msgid "QR code types"
+msgstr "أنواع أكواد QR"
+
+msgid "REST API for developers"
+msgstr "واجهة REST API للمطورين"
+
+msgid "Connection error — please try again."
+msgstr "خطأ في الاتصال — حاول مرة أخرى."
