@@ -905,3 +905,189 @@ html[dir="rtl"] .faq-q { text-align: right; }
 }
 .hist-pagination button:disabled { opacity: .35; cursor: not-allowed; }
 .hist-pagination button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+
+
+/* ============================================================
+   Mobile viewport / overflow hardening
+   ============================================================ */
+@media (max-width: 760px) {
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  body {
+    position: relative;
+  }
+
+  .page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-inline: 0;
+    padding-inline: 14px;
+  }
+
+  .nav,
+  .grid,
+  .feature-grid,
+  .steps,
+  .stats-strip,
+  .stats-row,
+  .charts-grid,
+  .site-footer,
+  .site-footer-full {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .card,
+  .feature-card,
+  .step,
+  .auth-shell,
+  .auth-brand,
+  .auth-formside,
+  .auth-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .card-header,
+  .card-body,
+  .preview-body {
+    min-width: 0;
+  }
+
+  .row-2 {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .fi, .ft, .fs,
+  .btn-gen,
+  .logo-upload-area {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .hero,
+  .lp-section,
+  .lp-section-head,
+  .cta-banner {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .hero-cta {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .hero-cta .btn-primary,
+  .hero-cta .btn-secondary {
+    max-width: 100%;
+  }
+
+  .app-footer {
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+  }
+
+  .site-footer-full {
+    grid-template-columns: 1fr;
+  }
+
+  .newsletter-form {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .newsletter-form input {
+    min-width: 0;
+  }
+
+  .tabs {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .history-toolbar,
+  .history-list {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .history-item {
+    min-width: 0;
+  }
+
+  .history-meta {
+    min-width: 0;
+  }
+
+  .qr-box {
+    width: min(100%, 260px);
+    max-width: 100%;
+  }
+
+  .color-row {
+    min-width: 0;
+  }
+
+  .style-btns {
+    min-width: 0;
+  }
+
+  .style-btn {
+    min-width: 0;
+  }
+
+  /* Prevent long text/URLs from creating a wider layout. */
+  .card,
+  .card *,
+  .hero,
+  .lp-section,
+  .auth-shell,
+  .site-footer,
+  .app-footer {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 380px) {
+  .nav {
+    padding-inline: 10px;
+  }
+
+  .page {
+    padding-inline: 10px;
+  }
+
+  .card-header {
+    padding-inline: 14px;
+  }
+
+  .card-body,
+  .preview-body {
+    padding-inline: 14px;
+  }
+
+  .feature-card {
+    padding: 20px;
+  }
+
+  .hero-cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-cta .btn-primary,
+  .hero-cta .btn-secondary {
+    width: 100%;
+  }
+}
