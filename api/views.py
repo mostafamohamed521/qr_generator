@@ -16,7 +16,7 @@ from django.shortcuts import render
 from .auth import api_key_required
 from .models import APIKey, WebhookEndpoint, generate_api_key, hash_api_key
 from qrapp.models import QRCode, DynamicLink
-from qrapp.qr_utils import generate_qr_image
+from qrapp.qr_utils import generate_qr_image, QRContentTooLong
 from qrapp.views import _build_content
 
 
@@ -115,7 +115,10 @@ def api_generate(request):
                 'remaining': max(remaining, 0),
             }, status=429)
 
-        image = generate_qr_image(content, size=size, color=qr_color, bg=bg_color, style=style)
+        try:
+            image = generate_qr_image(content, size=size, color=qr_color, bg=bg_color, style=style)
+        except QRContentTooLong as e:
+            return JsonResponse({'ok': False, 'error': str(e)}, status=400)
         obj   = QRCode.objects.create(
             user=request.api_user,
             qr_type=qr_type, label=label, content=content,
@@ -154,6 +157,7 @@ def api_list(request):
             'id':         q.id, 'type': q.qr_type, 'label': q.label,
             'content':    q.content[:100],
             'scan_count': q.scan_count,
+            'is_favorite': q.is_favorite,
             'created_at': q.created_at.isoformat(),
         } for q in qs]
     })
@@ -173,6 +177,7 @@ def api_get(request, pk):
         'content':    obj.content, 'image': obj.image_b64,
         'qr_color':   obj.qr_color, 'bg_color': obj.bg_color,
         'scan_count': obj.scan_count,
+        'is_favorite': obj.is_favorite,
         'created_at': obj.created_at.isoformat(),
     }})
 
@@ -214,7 +219,7 @@ def api_dynamic_create(request):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
     target_url = payload.get('target_url', '').strip()
-    if not target_url or not target_url.startswith(('http://', 'https://')):
+    if not target_url or not target_url.startswith(('http://', 'https://')) or len(target_url) > 2000:
         return JsonResponse({'ok': False, 'error': 'A valid target_url is required'}, status=400)
     label = payload.get('label', '').strip()[:120]
     link  = DynamicLink.objects.create(user=request.api_user, target_url=target_url, label=label)
@@ -242,7 +247,10 @@ def api_dynamic_update(request, pk):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
     if 'target_url' in payload:
-        link.target_url = payload['target_url']
+        target_url = str(payload['target_url']).strip()
+        if not target_url.startswith(('http://', 'https://')) or len(target_url) > 2000:
+            return JsonResponse({'ok': False, 'error': 'A valid target_url is required'}, status=400)
+        link.target_url = target_url
     if 'label' in payload:
         link.label = payload['label'][:120]
     if 'is_active' in payload:
