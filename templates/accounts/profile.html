@@ -3,7 +3,7 @@
 {% block title %}{% trans "Profile" %}{% endblock %}
 {% block content %}
 <section class="hero" style="padding-top:10px">
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,2.4rem);margin-bottom:6px">{% trans "Your profile" %}</h1>
+  <h1 style="font-family:'Fraunces',sans-serif;font-weight:700;font-size:clamp(2rem,4vw,2.4rem);margin-bottom:6px">{% trans "Your profile" %}</h1>
 </section>
 <div style="max-width:480px;margin:0 auto">
   <div class="feature-card" style="margin-bottom:16px">
@@ -16,7 +16,7 @@
           {% if user.profile.avatar %}
             <img src="{{ user.profile.avatar.url }}" alt="Avatar" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--border)">
           {% else %}
-            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.4rem;font-family:'Space Grotesk',sans-serif">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.4rem;font-family:'Fraunces',sans-serif">
               {{ user.first_name|first|default:user.email|first|upper }}
             </div>
           {% endif %}
@@ -41,19 +41,22 @@
   </div>
 
   {% if not user.profile.is_email_verified %}
-  <div class="feature-card" style="margin-bottom:16px;border-color:var(--accent-3);background:rgba(255,148,102,.06)">
+  <div class="feature-card" style="margin-bottom:16px;border-color:var(--accent-3);background:rgba(138,147,163,.06)">
     <h3 style="display:flex;align-items:center;gap:8px">⚠️ {% trans "Email not verified" %}</h3>
     <p style="margin-bottom:10px">{% trans "Check your inbox for a verification link, or resend it." %}</p>
-    <a href="{% url 'accounts:resend_verification' %}" class="btn-secondary" style="width:100%;text-decoration:none;justify-content:center;display:flex">{% trans "Resend verification email" %}</a>
+    <form method="post" action="{% url 'accounts:resend_verification' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-secondary" style="width:100%;justify-content:center;display:flex">{% trans "Resend verification email" %}</button>
+    </form>
   </div>
   {% else %}
-  <div class="feature-card" style="margin-bottom:16px;border-color:var(--accent-2);background:rgba(20,216,164,.06)">
-    <p style="margin:0;display:flex;align-items:center;gap:8px">✅ {% trans "Email verified" %}</p>
+  <div class="feature-card" style="margin-bottom:16px;border-color:var(--accent-2);background:rgba(169,120,46,.06)">
+    <p style="margin:0;display:flex;align-items:center;gap:8px"><span style="color:#5c7a63;display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg></span> {% trans "Email verified" %}</p>
   </div>
   {% endif %}
 
   <div class="feature-card" style="margin-bottom:16px">
-    <h3 style="display:flex;align-items:center;gap:8px">🔐 {% trans "Two-factor authentication" %}</h3>
+    <h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--accent);display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span> {% trans "Two-factor authentication" %}</h3>
     {% if user.profile.two_factor_enabled %}
       <p style="margin-bottom:10px;color:var(--accent-2);font-weight:600">✓ {% trans "Enabled" %}</p>
       <a href="{% url 'accounts:twofa_disable' %}" class="btn-secondary" style="width:100%;text-decoration:none;justify-content:center;display:flex;color:var(--danger)">{% trans "Disable 2FA" %}</a>
