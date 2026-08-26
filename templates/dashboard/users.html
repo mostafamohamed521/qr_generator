@@ -9,10 +9,10 @@
 .user-table td { padding:11px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
 .user-table tr:hover td { background:var(--hover-soft); }
 .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:.68rem; font-weight:700; }
-.badge-active   { background:rgba(20,216,164,.12); color:#0fae87; }
-.badge-inactive { background:rgba(224,57,92,.1);  color:var(--danger); }
-.badge-staff    { background:rgba(109,77,251,.12); color:var(--accent); }
-.avatar { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.75rem; color:#fff; margin-right:8px; vertical-align:middle; }
+.badge-active   { background:rgba(169,120,46,.12); color:#0fae87; }
+.badge-inactive { background:rgba(168,64,43,.1);  color:var(--danger); }
+.badge-staff    { background:rgba(27,51,88,.12); color:var(--accent); }
+.avatar { width:30px; height:30px; border-radius:50%; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.75rem; color:#fff; margin-right:8px; vertical-align:middle; }
 .table-wrap { overflow-x:auto; }
 .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
 .toolbar input { flex:1; min-width:180px; }
@@ -29,10 +29,10 @@
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
   <div>
-    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:4px">User Management</h1>
+    <h1 style="font-family:'Fraunces',sans-serif;font-size:1.8rem;font-weight:700;margin-bottom:4px">User Management</h1>
     <p style="color:var(--text-muted)"><a href="{% url 'dashboard:home' %}" style="color:var(--accent)">← Dashboard</a></p>
   </div>
-  <a href="{% url 'dashboard:export_users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px">📥 Export CSV</a>
+  <a href="{% url 'dashboard:export_users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px;display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</a>
 </div>
 
 <div class="card" style="padding:22px">
@@ -70,6 +70,16 @@
 {% block extra_js %}
 <script>
 let currentPage = 1;
+
+// Delegated once here (not inside loadUsers, which re-renders the table
+// body's innerHTML repeatedly) so the delete button's email never has to
+// be interpolated into a JS string literal — a crafted email containing
+// a quote could otherwise break out of onclick="deleteUser(id,'email')"
+// and run script in this admin page.
+document.getElementById('user-tbody').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-del-id]');
+  if (btn) deleteUser(Number(btn.dataset.delId), btn.dataset.delEmail);
+});
 
 async function loadUsers() {
   const q = document.getElementById('search').value.trim();
@@ -116,7 +126,7 @@ async function loadUsers() {
         <button class="action-btn ${u.is_staff ? 'danger' : ''}" onclick="toggleStaff(${u.id}, ${!u.is_staff})">
           ${u.is_staff ? 'Remove Staff' : 'Make Staff'}
         </button>
-        <button class="action-btn danger" onclick="deleteUser(${u.id}, '${esc(u.email)}')">Delete</button>
+        <button class="action-btn danger" data-del-id="${u.id}" data-del-email="${esc(u.email)}">Delete</button>
       </td>
     </tr>`).join('');
 }
