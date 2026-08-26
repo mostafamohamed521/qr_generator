@@ -1,8 +1,15 @@
 /**
- * QR Forge Service Worker — Sprint 7
- * Strategy: cache-first for static assets, network-first for API/pages.
+ * QR Forge Service Worker
+ * Strategy: stale-while-revalidate for static assets, network-first for pages.
  */
-const CACHE_NAME  = 'qr-forge-v1';
+// Bumped from v1 -- the old cache-first strategy below served style.css /
+// app.js from cache forever with no revalidation, so any CSS/JS deploy
+// (like this project's full redesign) was invisible to anyone who'd
+// loaded the site even once before, no matter how hard they refreshed --
+// service worker caches aren't cleared by a normal browser hard-reload.
+// Bumping CACHE_NAME forces the activate handler below to drop the old
+// cache immediately for anyone already running the previous worker.
+const CACHE_NAME  = 'qr-forge-v2';
 const SHELL_URLS  = [
   '/app/',
   '/static/css/style.css',
@@ -43,14 +50,23 @@ self.addEventListener('fetch', event => {
       url.pathname.startsWith('/admin/') ||
       url.pathname.startsWith('/r/')) return;
 
-  // 2. Static assets — cache-first
+  // 2. Static assets — stale-while-revalidate: serve the cached copy
+  // instantly (fast, works offline), but always kick off a network fetch
+  // in the background to refresh the cache. This means a deploy is at
+  // most one extra load away from showing up, instead of invisible until
+  // the cache name is manually bumped (which is exactly what happened
+  // here — this file itself is one of the cached assets).
   if (url.pathname.startsWith('/static/')) {
     event.respondWith(
-      caches.match(request).then(cached => cached || fetch(request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(request, clone));
-        return res;
-      }))
+      caches.open(CACHE_NAME).then(cache =>
+        cache.match(request).then(cached => {
+          const network = fetch(request).then(res => {
+            cache.put(request, res.clone());
+            return res;
+          }).catch(() => cached);
+          return cached || network;
+        })
+      )
     );
     return;
   }
