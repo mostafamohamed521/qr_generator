@@ -40,45 +40,12 @@ const styleHidden   = document.getElementById('qr-style');
 const typeHidden    = document.getElementById('qr-type');
 const logob64       = document.getElementById('logo-b64');
 
-// ── Background canvas ───────────────────────────────────────────────────────
-(function initBg() {
-  const canvas = document.getElementById('bg-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let W, H;
-
-  const orbs = [
-    { x: 0.15, y: 0.1,  r: 420, c: '78,240,196',  s: 0.00012 },
-    { x: 0.88, y: 0.85, r: 360, c: '124,110,247',  s: -0.00009 },
-    { x: 0.55, y: 0.5,  r: 250, c: '247,194,110',  s: 0.00007 },
-  ];
-  let t = 0;
-
-  function resize() {
-    W = canvas.width  = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-    orbs.forEach(o => {
-      const cx = W * o.x + Math.sin(t * o.s * W) * 80;
-      const cy = H * o.y + Math.cos(t * o.s * H) * 60;
-      const g  = ctx.createRadialGradient(cx, cy, 0, cx, cy, o.r);
-      g.addColorStop(0,   `rgba(${o.c},0.13)`);
-      g.addColorStop(1,   `rgba(${o.c},0)`);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(cx, cy, o.r, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    t++;
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
+// ── Background ───────────────────────────────────────────────────────────
+// Previously an infinitely-animating canvas of blurred floating gradient
+// orbs (continuous requestAnimationFrame loop, purely decorative — wasted
+// battery/CPU on every page). Replaced with a static, subtle vignette
+// drawn once in pure CSS (see #bg-canvas / body::before in style.css) for
+// a calmer, more classic look with zero ongoing cost.
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 function esc(s) {
@@ -324,9 +291,11 @@ let histCurrentPage = 1;
 function histBuildParams() {
   const q    = document.getElementById('hist-search')?.value.trim() || '';
   const type = document.getElementById('hist-type-filter')?.value || 'all';
+  const favOnly = document.getElementById('hist-fav-filter')?.classList.contains('active');
   const params = new URLSearchParams({ page: histCurrentPage });
   if (q)           params.set('q', q);
   if (type !== 'all') params.set('type', type);
+  if (favOnly)      params.set('favorites', '1');
   return params;
 }
 
@@ -349,13 +318,23 @@ async function loadHistory() {
     }
 
     historyList.innerHTML = data.items.map(q => `
-      <div class="history-item" onclick="loadFromHistory('${esc(q.image)}','${esc(q.content)}')">
+      <div class="history-item" data-image="${esc(q.image)}" data-content="${esc(q.content)}">
         <img src="${esc(q.image)}" alt="QR">
         <div class="history-meta">
           <div class="history-label">${esc(q.label)}</div>
           <div class="history-sub">${esc(q.type_label)} · ${esc(q.created_at)}${q.scan_count ? ` · <b>${q.scan_count} scans</b>` : ''}</div>
         </div>
-        <button class="history-del" onclick="event.stopPropagation();delQR(${q.id},this)" title="Delete">
+        <button class="history-fav ${q.is_favorite ? 'active' : ''}" data-id="${q.id}" title="Favorite">
+          <svg viewBox="0 0 24 24" fill="${q.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </button>
+        <button class="history-dup" data-id="${q.id}" title="Duplicate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+        </button>
+        <button class="history-del" data-id="${q.id}" title="Delete">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
             <path d="M10 11v6"/><path d="M14 11v6"/>
@@ -389,6 +368,38 @@ function loadFromHistory(src, content) {
   showQR(src);
 }
 
+// Delegated handlers (replaces inline onclick="..." that used to
+// string-interpolate QR content into a JS literal — a QR containing a
+// single quote could break out of that string and inject script).
+historyList?.addEventListener('click', (e) => {
+  const delBtn = e.target.closest('.history-del');
+  if (delBtn) {
+    e.stopPropagation();
+    delQR(Number(delBtn.dataset.id), delBtn);
+    return;
+  }
+  const favBtn = e.target.closest('.history-fav');
+  if (favBtn) {
+    e.stopPropagation();
+    toggleFavorite(Number(favBtn.dataset.id), favBtn);
+    return;
+  }
+  const dupBtn = e.target.closest('.history-dup');
+  if (dupBtn) {
+    e.stopPropagation();
+    duplicateQR(Number(dupBtn.dataset.id), dupBtn);
+    return;
+  }
+  const item = e.target.closest('.history-item');
+  if (item) loadFromHistory(item.dataset.image, item.dataset.content);
+});
+
+document.getElementById('hist-fav-filter')?.addEventListener('click', function () {
+  this.classList.toggle('active');
+  histCurrentPage = 1;
+  loadHistory();
+});
+
 function exportCSV() {
   const params = histBuildParams();
   window.location.href = `${window.APP_BASE}api/export-csv/?${params}`;
@@ -415,6 +426,50 @@ async function delQR(id, btn) {
   const data = await res.json();
   if (data.ok) { row.remove(); toast('Deleted', 'ok'); }
   else { row.style.opacity = ''; toast('Failed to delete', 'err'); }
+}
+
+async function toggleFavorite(id, btn) {
+  btn.disabled = true;
+  try {
+    const res  = await fetch(`${window.APP_BASE}api/favorite/${id}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken() },
+    });
+    const data = await res.json();
+    if (data.ok) {
+      btn.classList.toggle('active', data.is_favorite);
+      btn.querySelector('svg').setAttribute('fill', data.is_favorite ? 'currentColor' : 'none');
+      // If a favorites-only filter is active and this item was just
+      // unfavorited, it no longer belongs in the current list.
+      if (!data.is_favorite && document.getElementById('hist-fav-filter')?.classList.contains('active')) {
+        loadHistory();
+      }
+    } else {
+      toast('Failed to update favorite', 'err');
+    }
+  } catch { toast('Connection error', 'err'); }
+  btn.disabled = false;
+}
+
+async function duplicateQR(id, btn) {
+  btn.disabled = true;
+  try {
+    const res  = await fetch(`${window.APP_BASE}api/duplicate/${id}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken() },
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast('Duplicated', 'ok');
+      histCurrentPage = 1;
+      loadHistory();
+    } else if (data.code === 'quota_exceeded') {
+      toast(data.error, 'err');
+    } else {
+      toast(data.error || 'Failed to duplicate', 'err');
+    }
+  } catch { toast('Connection error', 'err'); }
+  btn.disabled = false;
 }
 
 async function clearAll() {
