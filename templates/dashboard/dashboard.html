@@ -9,20 +9,20 @@
 @media(max-width:900px){.dash-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.dash-grid{grid-template-columns:1fr 1fr}}
 .dash-stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow); animation:fade-up .4s ease both; }
-.dash-stat-val { font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1.8rem; margin-bottom:4px; }
+.dash-stat-val { font-family:'Fraunces',sans-serif; font-weight:700; font-size:1.8rem; margin-bottom:4px; }
 .dash-stat-lbl { font-size:.78rem; color:var(--text-muted); font-weight:500; }
 .dash-stat-delta { font-size:.72rem; margin-top:5px; }
-.delta-up   { color:#14d8a4; } .delta-down { color:var(--danger); }
+.delta-up   { color:#5c7a63; } .delta-down { color:var(--danger); }
 .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
 @media(max-width:900px){.charts-row{grid-template-columns:1fr}}
 .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px; box-shadow:var(--shadow); }
-.chart-card h3 { font-family:'Space Grotesk',sans-serif; font-size:.92rem; font-weight:700; margin-bottom:16px; }
+.chart-card h3 { font-family:'Fraunces',sans-serif; font-size:.92rem; font-weight:700; margin-bottom:16px; }
 .chart-wrap { position:relative; height:180px; }
 .bottom-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 @media(max-width:900px){.bottom-row{grid-template-columns:1fr}}
 .user-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
 .user-row:last-child { border-bottom:none; }
-.ua { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.78rem; color:#fff; flex-shrink:0; }
+.ua { width:32px; height:32px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.78rem; color:#fff; flex-shrink:0; }
 .un { font-size:.82rem; font-weight:600; }
 .ue { font-size:.72rem; color:var(--text-muted); }
 .uq { margin-left:auto; font-size:.78rem; font-weight:700; color:var(--accent); }
@@ -30,19 +30,19 @@
 .log-row:last-child { border-bottom:none; }
 .log-action { font-weight:600; }
 .log-meta   { font-size:.72rem; color:var(--text-muted); margin-top:2px; }
-.nav-link-admin { background:rgba(224,57,92,.12); color:var(--danger) !important; }
+.nav-link-admin { background:rgba(168,64,43,.12); color:var(--danger) !important; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
   <div>
-    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:4px">Admin Dashboard</h1>
+    <h1 style="font-family:'Fraunces',sans-serif;font-size:1.8rem;font-weight:700;margin-bottom:4px">Admin Dashboard</h1>
     <p style="color:var(--text-muted)">Site-wide overview</p>
   </div>
   <div style="display:flex;gap:8px">
-    <a href="{% url 'dashboard:users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px">👥 Manage Users</a>
-    <a href="{% url 'dashboard:export_users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px">📥 Export CSV</a>
+    <a href="{% url 'dashboard:users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px;display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Manage Users</a>
+    <a href="{% url 'dashboard:export_users' %}" class="act-btn" style="text-decoration:none;padding:8px 14px;display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</a>
   </div>
 </div>
 
@@ -52,22 +52,22 @@
 
 <div class="charts-row">
   <div class="chart-card">
-    <h3>👤 User Signups — Last 14 Days</h3>
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="vertical-align:-2px;margin-right:4px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>User Signups — Last 14 Days</h3>
     <div class="chart-wrap"><canvas id="user-chart"></canvas></div>
   </div>
   <div class="chart-card">
-    <h3>📊 QR Code Activity — Last 14 Days</h3>
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>QR Code Activity — Last 14 Days</h3>
     <div class="chart-wrap"><canvas id="qr-chart"></canvas></div>
   </div>
 </div>
 
 <div class="charts-row">
   <div class="chart-card">
-    <h3>🏷️ QR Types Breakdown</h3>
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>QR Types Breakdown</h3>
     <div class="chart-wrap"><canvas id="type-chart"></canvas></div>
   </div>
   <div class="chart-card">
-    <h3>⚡ Recent Activity</h3>
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="vertical-align:-2px;margin-right:4px"><polyline points="13 2 13 9 20 9"/><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 8 8 8"/></svg>Recent Activity</h3>
     <div id="activity-log" style="max-height:200px;overflow-y:auto">
       <p style="color:var(--text-muted);font-size:.82rem">Loading…</p>
     </div>
@@ -76,11 +76,11 @@
 
 <div class="bottom-row">
   <div class="chart-card">
-    <h3>🏆 Top Users by QR Count</h3>
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="vertical-align:-2px;margin-right:4px"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Top Users by QR Count</h3>
     <div id="top-users"></div>
   </div>
   <div class="chart-card">
-    <h3>🔢 Quick Stats</h3>
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="vertical-align:-2px;margin-right:4px"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>Quick Stats</h3>
     <div id="quick-stats"></div>
   </div>
 </div>
@@ -113,7 +113,7 @@ async function loadDashboard() {
     { val: qr_by_type[0]?.qr_type?.toUpperCase() || '—',
       lbl: 'Top QR type', delta: `${qr_by_type[0]?.count || 0} codes`, color: 'var(--accent-2)' },
     { val: stats.total_users - (top_users.filter(u=>!u.is_active).length),
-      lbl: 'Active Users', delta: '', color: '#14d8a4' },
+      lbl: 'Active Users', delta: '', color: '#a9782e' },
   ];
 
   document.getElementById('stat-cards').innerHTML = cards.map((c,i) => `
@@ -169,7 +169,7 @@ async function loadDashboard() {
   });
 
   // Type breakdown (doughnut)
-  const colours = [accent,accent2,accent3,'#f0c419','#8b5cf6','#06b6d4','#84cc16','#f97316'];
+  const colours = [accent,accent2,accent3,'#b98a2e','#5c7a63','#7c93ae','#9c8062','#a8402b'];
   new Chart(document.getElementById('type-chart'), {
     type:'doughnut',
     data:{
@@ -186,8 +186,8 @@ async function loadDashboard() {
   document.getElementById('activity-log').innerHTML = recent.length
     ? recent.map(e=>`
         <div class="log-row">
-          <div class="log-action">${e.action.replace('.',' › ')}</div>
-          <div class="log-meta">${e.username} · ${e.created_at}${e.team__name ? ' · '+e.team__name : ''}</div>
+          <div class="log-action">${esc(e.action.replace('.',' › '))}</div>
+          <div class="log-meta">${esc(e.username)} · ${esc(e.created_at)}${e.team__name ? ' · '+esc(e.team__name) : ''}</div>
         </div>`).join('')
     : '<p style="color:var(--text-muted);font-size:.82rem">No activity yet</p>';
 
@@ -195,10 +195,10 @@ async function loadDashboard() {
   document.getElementById('top-users').innerHTML = top_users.length
     ? top_users.map(u=>`
         <div class="user-row">
-          <div class="ua">${(u.name||u.email)[0].toUpperCase()}</div>
+          <div class="ua">${esc((u.name||u.email)[0].toUpperCase())}</div>
           <div style="flex:1;min-width:0">
-            <div class="un">${u.name||'—'}</div>
-            <div class="ue">${u.email}</div>
+            <div class="un">${esc(u.name||'—')}</div>
+            <div class="ue">${esc(u.email)}</div>
           </div>
           <div class="uq">${u.qr_count} QR</div>
         </div>`).join('')
