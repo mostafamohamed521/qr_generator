@@ -7,7 +7,7 @@
 <style>
 .bulk-progress-wrap { margin:14px 0 4px; display:none; flex-direction:column; gap:5px; }
 .bulk-progress-bar { height:8px; border-radius:8px; background:var(--border); overflow:hidden; }
-.bulk-progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); border-radius:8px; transition:width .2s; }
+.bulk-progress-fill { height:100%; background:var(--accent); border-radius:8px; transition:width .2s; }
 .bulk-progress-label { font-size:.76rem; color:var(--text-muted); text-align:right; }
 .bulk-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); animation:fade-up .25s ease both; }
 .bulk-item img { width:52px; height:52px; border-radius:8px; border:1px solid var(--border); object-fit:contain; background:var(--field-bg); flex-shrink:0; }
@@ -96,8 +96,8 @@
           Results
         </div>
         <div style="display:flex;gap:6px">
-          <button id="dl-all-btn" onclick="dlAll('png')" style="display:none" class="act-btn" style="padding:5px 10px;font-size:.76rem">&#8595; ZIP (PNG)</button>
-          <button id="dl-jpg-btn" onclick="dlAll('jpg')" style="display:none" class="act-btn" style="padding:5px 10px;font-size:.76rem">&#8595; ZIP (JPG)</button>
+          <button id="dl-all-btn" onclick="dlAll('png')" style="display:none;padding:5px 10px;font-size:.76rem" class="act-btn">&#8595; ZIP (PNG)</button>
+          <button id="dl-jpg-btn" onclick="dlAll('jpg')" style="display:none;padding:5px 10px;font-size:.76rem" class="act-btn">&#8595; ZIP (JPG)</button>
         </div>
       </div>
       <div id="bulk-summary" class="bulk-summary"></div>
@@ -122,6 +122,15 @@
 let bulkStyle   = 'square';
 let bulkMode    = 'text';
 let bulkResults = [];
+
+// Delegated once (bulk-results is appended to repeatedly) so a QR's
+// label never has to be interpolated into a JS string literal — a
+// label containing a quote could otherwise break out of
+// onclick="dlOne('img','label','png')" and run script on this page.
+document.getElementById('bulk-results').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-dl-src]');
+  if (btn) dlOne(btn.dataset.dlSrc, btn.dataset.dlLabel, btn.dataset.dlFmt);
+});
 
 // ── Mode toggle ──────────────────────────────────────────────────────────────
 function setMode(m) {
@@ -275,8 +284,8 @@ function appendResults(results) {
            <div class="bulk-item-sub">${esc((r.content||'').slice(0,60))}</div>
          </div>
          <div class="bulk-item-btns">
-           <button class="bulk-item-btn" onclick="dlOne('${r.image}','${esc(r.label||'qr')}','png')">PNG</button>
-           <button class="bulk-item-btn" onclick="dlOne('${r.image}','${esc(r.label||'qr')}','jpg')">JPG</button>
+           <button class="bulk-item-btn" data-dl-src="${esc(r.image)}" data-dl-label="${esc(r.label||'qr')}" data-dl-fmt="png">PNG</button>
+           <button class="bulk-item-btn" data-dl-src="${esc(r.image)}" data-dl-label="${esc(r.label||'qr')}" data-dl-fmt="jpg">JPG</button>
          </div>`;
     container.appendChild(div);
   });
