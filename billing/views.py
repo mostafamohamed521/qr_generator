@@ -177,6 +177,23 @@ def cancel_plan(request):
     sub = _get_or_create_sub(request.user)
     if sub.plan.code == 'free':
         return JsonResponse({'ok': False, 'error': 'Already on Free plan'}, status=400)
+
+    # This view immediately downgrades the local record to Free, so the
+    # real Stripe subscription must be cancelled too -- otherwise the
+    # customer keeps being billed after the app told them they'd cancelled.
+    if sub.stripe_subscription_id and settings.STRIPE_SECRET_KEY:
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        try:
+            stripe.Subscription.cancel(sub.stripe_subscription_id)
+        except stripe.error.InvalidRequestError:
+            pass  # already cancelled/doesn't exist on Stripe's side — fine, proceed with local downgrade
+        except stripe.error.StripeError as e:
+            logger.error('Stripe subscription cancel failed for user %s: %s', request.user.id, e)
+            return JsonResponse({
+                'ok': False,
+                'error': 'Could not cancel your subscription with the payment provider. Please try again or contact support.',
+            }, status=502)
+
     free = Plan.objects.get(code='free')
     sub.plan   = free
     sub.status = 'canceled'
