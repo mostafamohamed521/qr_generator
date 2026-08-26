@@ -15,17 +15,17 @@
 .dyn-meta { display:flex; gap:8px; flex-wrap:wrap; font-size:.74rem; color:var(--text-muted); }
 .dyn-meta strong { color:var(--accent); }
 .dyn-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:.7rem; font-weight:700; }
-.badge-active { background:rgba(20,216,164,.15); color:var(--accent-2); }
-.badge-inactive { background:rgba(224,57,92,.12); color:var(--danger); }
+.badge-active { background:rgba(169,120,46,.15); color:var(--accent-2); }
+.badge-inactive { background:rgba(168,64,43,.12); color:var(--danger); }
 .dyn-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .dyn-btn { flex:1; padding:7px 10px; border-radius:9px; border:1px solid var(--border); background:var(--field-bg); color:var(--text); font-size:.78rem; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; transition:all .15s; }
 .dyn-btn:hover { border-color:var(--accent); color:var(--accent); }
 .dyn-btn.danger:hover { border-color:var(--danger); color:var(--danger); }
-.dyn-btn.primary { background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; border:none; }
+.dyn-btn.primary { background:var(--accent); color:#fff; border:none; }
 .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:none; align-items:center; justify-content:center; }
 .modal-backdrop.open { display:flex; }
 .modal { background:var(--surface-solid); border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; width:calc(100% - 40px); max-width:480px; box-shadow:var(--shadow); animation:fade-up .25s ease; }
-.modal h2 { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:16px; }
+.modal h2 { font-family:'Fraunces',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:16px; }
 .modal-close { position:absolute; top:16px; right:16px; }
 .modal-field { margin-bottom:14px; }
 .modal-field label { display:block; font-size:.82rem; font-weight:600; margin-bottom:6px; }
@@ -42,7 +42,7 @@
 
 {% block content %}
 <div class="header">
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Dynamic QR Codes</h1>
+  <h1 style="font-family:'Fraunces',sans-serif;font-size:1.8rem;font-weight:700;margin-bottom:6px">Dynamic QR Codes</h1>
   <p style="color:var(--text-muted)">Change the destination anytime — the QR code never changes.</p>
 </div>
 
@@ -127,6 +127,17 @@
 <script>
 const DAPI = `${window.APP_BASE}api/dynamic/`;
 
+// Delegated once here (dyn-grid's innerHTML gets rebuilt on every
+// loadDynamic() call) so a link's label/target URL never has to be
+// interpolated into a JS string literal — either could contain a quote
+// and break out of onclick="openEdit(id,'url','label',active)".
+document.getElementById('dyn-grid').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-edit-id]');
+  if (btn) {
+    openEdit(Number(btn.dataset.editId), btn.dataset.editUrl, btn.dataset.editLabel, btn.dataset.editActive === 'true');
+  }
+});
+
 // ── Load list ────────────────────────────────────────────────────────────────
 async function loadDynamic() {
   let data;
@@ -179,7 +190,7 @@ async function loadDynamic() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           Stats
         </button>
-        <button class="dyn-btn" onclick="openEdit(${l.id},'${esc(l.target_url)}','${esc(l.label)}',${l.is_active})">
+        <button class="dyn-btn" data-edit-id="${l.id}" data-edit-url="${esc(l.target_url)}" data-edit-label="${esc(l.label)}" data-edit-active="${l.is_active}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Edit
         </button>
@@ -333,7 +344,7 @@ async function openStats(id) {
         <div class="stat-lbl">Total scans</div>
       </div>
       <div class="stat-card" style="flex:1;padding:14px 16px">
-        <div class="stat-val" style="font-size:.8rem;font-weight:600;word-break:break-all">${data.target_url}</div>
+        <div class="stat-val" style="font-size:.8rem;font-weight:600;word-break:break-all">${esc(data.target_url)}</div>
         <div class="stat-lbl">Destination</div>
       </div>
     </div>
