@@ -16,6 +16,10 @@ ICONS = {
     'layers': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>',
     'users':  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     'code':   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>',
+    'refresh':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+    'shield': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    'lock':   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    'key':    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3M15 15a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"/></svg>',
 }
 
 
@@ -23,6 +27,7 @@ def _features():
     return [
         {'icon': ICONS['grid'], 'title': 'All QR types', 'desc': 'URL, text, contact cards, WiFi, SMS, email, phone, and location — all in one generator.'},
         {'icon': ICONS['sliders'], 'title': 'Full customization', 'desc': 'Colors, shapes, sizes, and your own logo embedded right in the code.'},
+        {'icon': ICONS['refresh'], 'title': 'Dynamic QR codes', 'desc': "Change where a code points after it's printed — no need to reprint if a link changes."},
         {'icon': ICONS['chart'], 'title': 'Analytics & tracking', 'desc': 'See scan counts and activity trends for every code you create.'},
         {'icon': ICONS['layers'], 'title': 'Bulk generation', 'desc': 'Upload a list and generate hundreds of codes in one click, exported as a ZIP.'},
         {'icon': ICONS['users'], 'title': 'Built for teams', 'desc': 'Shared workspaces, roles, and an activity log for everyone on the team.'},
@@ -30,16 +35,16 @@ def _features():
     ]
 
 
-def _testimonials():
+def _security_points():
     return [
-        {'quote': 'We switched all our print campaigns to QR Forge — the analytics alone paid for itself.', 'name': 'Mariam K.', 'role': 'Marketing Lead'},
-        {'quote': 'The bulk generator saved us a full day of manual work for our event badges.', 'name': 'Omar S.', 'role': 'Event Organizer'},
-        {'quote': 'Clean, fast, and the API made it trivial to plug into our own app.', 'name': 'Lina F.', 'role': 'Indie Developer'},
+        {'icon': ICONS['lock'], 'title': 'Two-factor authentication', 'desc': 'Optional TOTP-based 2FA on every account, compatible with any authenticator app.'},
+        {'icon': ICONS['shield'], 'title': 'Rate-limited by design', 'desc': 'Login, password reset, and API endpoints are all throttled against abuse.'},
+        {'icon': ICONS['key'], 'title': 'Signed webhooks', 'desc': 'Every webhook delivery is HMAC-signed so you can verify it actually came from us.'},
     ]
 
 
 def landing(request):
-    return render(request, 'core/landing.html', {'features': _features(), 'testimonials': _testimonials()})
+    return render(request, 'core/landing.html', {'features': _features(), 'security_points': _security_points()})
 
 
 def pricing(request):
@@ -103,7 +108,7 @@ def faq(request):
         {'q': 'Can I customize the QR code design?', 'a': 'Yes, you can set colors, shapes, size, and add your own logo.'},
         {'q': 'Do you support teams?', 'a': 'Yes, the Pro plan includes shared team workspaces with roles.'},
         {'q': 'Can I change where a QR code points after printing it?', 'a': 'Yes, with Dynamic QR codes (Pro) you can update the destination URL anytime without reprinting.'},
-        {'q': 'Is there an API?', 'a': 'Yes, Pro and Team plans include API keys and webhooks for programmatic access.'},
+        {'q': 'Is there an API?', 'a': 'Yes, the Pro plan includes API keys and webhooks for programmatic access.'},
     ]
     return render(request, 'core/faq.html', {'faqs': faqs})
 
@@ -112,12 +117,15 @@ from django.http import HttpResponse
 
 
 def robots_txt(request):
-    content = """User-agent: *
+    # Was hardcoded to "yoursite.com" — wrong for every real deployment.
+    # Build it from the actual request host, same as sitemap_xml already does.
+    base = request.build_absolute_uri('/')[:-1]
+    content = f"""User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /app/api/
 Disallow: /teams/api/
-Sitemap: https://yoursite.com/sitemap.xml
+Sitemap: {base}/sitemap.xml
 """
     return HttpResponse(content, content_type='text/plain')
 
