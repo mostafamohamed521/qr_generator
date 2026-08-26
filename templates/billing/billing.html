@@ -8,24 +8,24 @@
 .plan-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:720px; margin:24px auto; }
 @media(max-width:640px){ .plan-grid{grid-template-columns:1fr} }
 .plan-card { border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; background:var(--surface); position:relative; transition:box-shadow .2s; }
-.plan-card.current { border-color:var(--accent); box-shadow:0 0 0 2px rgba(109,77,251,.18); }
-.plan-card.pro { background:linear-gradient(160deg,rgba(109,77,251,.07),rgba(20,216,164,.07)); }
-.plan-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); padding:3px 14px; border-radius:20px; font-size:.68rem; font-weight:800; white-space:nowrap; }
+.plan-card.current { border-color:var(--accent); box-shadow:0 0 0 2px rgba(27,51,88,.18); }
+.plan-card.pro { background:linear-gradient(160deg,rgba(27,51,88,.07),rgba(169,120,46,.07)); }
+.plan-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); padding:3px 14px; border-radius:20px; font-size:.68rem; font-weight:700; white-space:nowrap; }
 .badge-current { background:var(--accent-soft); color:var(--accent); }
-.badge-popular { background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; }
-.plan-name { font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1.2rem; margin-bottom:4px; }
-.plan-price { font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:2.4rem; margin:10px 0; }
+.badge-popular { background:var(--accent-2); color:#fff; }
+.plan-name { font-family:'Fraunces',sans-serif; font-weight:600; font-size:1.2rem; margin-bottom:4px; }
+.plan-price { font-family:'Fraunces',sans-serif; font-weight:600; font-size:2.4rem; margin:10px 0; }
 .plan-price span { font-size:.9rem; font-weight:400; color:var(--text-muted); }
 .plan-features { list-style:none; margin:16px 0 22px; display:flex; flex-direction:column; gap:8px; }
 .plan-features li { display:flex; align-items:center; gap:8px; font-size:.85rem; }
 .plan-features li svg { width:15px; height:15px; flex-shrink:0; }
-.feat-yes { color:#14d8a4; }
+.feat-yes { color:#a9782e; }
 .feat-no  { color:var(--text-muted); opacity:.5; }
 .usage-bar-wrap { margin-bottom:6px; }
 .usage-bar-track { height:8px; border-radius:8px; background:var(--border); overflow:hidden; }
-.usage-bar-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width .6s ease; }
-.usage-bar-fill.warn { background:linear-gradient(90deg,#f0c419,#ff9466); }
-.usage-bar-fill.danger { background:linear-gradient(90deg,#ff9466,var(--danger)); }
+.usage-bar-fill { height:100%; border-radius:8px; background:var(--accent); transition:width .6s ease; }
+.usage-bar-fill.warn { background:#b98a2e; }
+.usage-bar-fill.danger { background:var(--danger); }
 .invoice-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:.84rem; }
 .invoice-row:last-child { border-bottom:none; }
 </style>
@@ -33,7 +33,7 @@
 
 {% block content %}
 <div style="margin-bottom:24px">
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Billing &amp; Plans</h1>
+  <h1 style="font-family:'Fraunces',sans-serif;font-size:1.8rem;font-weight:700;margin-bottom:6px">Billing &amp; Plans</h1>
   <p style="color:var(--text-muted)">Manage your subscription and usage</p>
 </div>
 
@@ -42,7 +42,7 @@
   <div style="font-size:.8rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Current Plan</div>
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
     <div>
-      <span style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.4rem" id="current-plan-name">Loading…</span>
+      <span style="font-family:'Fraunces',sans-serif;font-weight:700;font-size:1.4rem" id="current-plan-name">Loading…</span>
       <span id="current-plan-status" style="margin-left:10px;font-size:.78rem;padding:2px 8px;border-radius:20px"></span>
     </div>
     <div id="current-plan-actions"></div>
@@ -59,7 +59,7 @@
 
 <!-- Plan cards -->
 <div style="text-align:center;margin-bottom:10px">
-  <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.2rem">Choose your plan</h2>
+  <h2 style="font-family:'Fraunces',sans-serif;font-weight:700;font-size:1.2rem">Choose your plan</h2>
 </div>
 <div class="plan-grid">
   {% for plan in plans %}
@@ -119,7 +119,7 @@
 
 <!-- Feature comparison table -->
 <div class="card" style="padding:22px;max-width:720px;margin:24px auto">
-  <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1rem;margin-bottom:16px">Full comparison</h3>
+  <h3 style="font-family:'Fraunces',sans-serif;font-weight:700;font-size:1rem;margin-bottom:16px">Full comparison</h3>
   <table style="width:100%;font-size:.84rem;border-collapse:collapse">
     <thead>
       <tr>
@@ -142,7 +142,7 @@
 
 <!-- Invoices (placeholder) -->
 <div class="card" style="padding:22px;max-width:720px;margin:0 auto 40px">
-  <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1rem;margin-bottom:14px">Billing history</h3>
+  <h3 style="font-family:'Fraunces',sans-serif;font-weight:700;font-size:1rem;margin-bottom:14px">Billing history</h3>
   <div class="invoice-row">
     <span>No invoices yet</span>
     <span style="color:var(--text-muted);font-size:.78rem">Stripe billing invoices will appear here</span>
@@ -172,8 +172,8 @@ async function loadPlan() {
   const statusEl = document.getElementById('current-plan-status');
   statusEl.textContent = s.status.charAt(0).toUpperCase() + s.status.slice(1);
   statusEl.style.cssText = s.status === 'active'
-    ? 'background:rgba(20,216,164,.12);color:#0fae87'
-    : 'background:rgba(224,57,92,.1);color:var(--danger)';
+    ? 'background:rgba(169,120,46,.12);color:#0fae87'
+    : 'background:rgba(168,64,43,.1);color:var(--danger)';
 
   // Actions
   const actEl = document.getElementById('current-plan-actions');
