@@ -14,10 +14,10 @@
 .endpoint-card { border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:20px; overflow:hidden; }
 .endpoint-header { display:flex; align-items:center; gap:10px; padding:14px 18px; cursor:pointer; background:var(--surface); }
 .endpoint-header:hover { background:var(--hover-soft); }
-.method { padding:3px 8px; border-radius:6px; font-size:.72rem; font-weight:800; flex-shrink:0; }
-.method-get  { background:rgba(20,216,164,.15); color:#0fae87; }
-.method-post { background:rgba(109,77,251,.12); color:var(--accent); }
-.endpoint-path { font-family:'Space Grotesk',monospace; font-weight:600; font-size:.88rem; }
+.method { padding:3px 8px; border-radius:6px; font-size:.72rem; font-weight:700; flex-shrink:0; }
+.method-get  { background:rgba(169,120,46,.15); color:#0fae87; }
+.method-post { background:rgba(27,51,88,.12); color:var(--accent); }
+.endpoint-path { font-family:'Fraunces',monospace; font-weight:600; font-size:.88rem; }
 .endpoint-desc { color:var(--text-muted); font-size:.78rem; margin-left:auto; }
 .endpoint-body { padding:18px; background:var(--field-bg); display:none; border-top:1px solid var(--border); }
 .endpoint-body.open { display:block; }
@@ -38,7 +38,7 @@
 
 {% block content %}
 <div style="margin-bottom:28px">
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Developer API</h1>
+  <h1 style="font-family:'Fraunces',sans-serif;font-size:1.8rem;font-weight:700;margin-bottom:6px">Developer API</h1>
   <p style="color:var(--text-muted)">Integrate QR Forge into your apps. Base URL: <code style="background:var(--accent-soft);padding:2px 8px;border-radius:6px;font-size:.83rem">/api/v1/</code></p>
 </div>
 
@@ -65,7 +65,7 @@
   <div>
     <!-- API Keys section -->
     <div id="auth" class="card" style="padding:22px;margin-bottom:20px">
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:4px">API Keys</h2>
+      <h2 style="font-family:'Fraunces',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:4px">API Keys</h2>
       <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px">Pass your key as: <code>Authorization: Bearer &lt;key&gt;</code></p>
 
       <div id="key-list">
@@ -254,7 +254,7 @@
 
     <!-- Webhooks section -->
     <div id="webhooks" class="card" style="padding:22px;margin-bottom:20px">
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:4px">Webhooks</h2>
+      <h2 style="font-family:'Fraunces',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:4px">Webhooks</h2>
       <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:14px">Get notified when a dynamic QR code is scanned. We POST to your URL with an HMAC-signed payload.</p>
       <div class="code-block">// Webhook payload (POST to your endpoint)
 {
@@ -339,10 +339,10 @@ async function createKey() {
     card.className = 'key-card';
     card.innerHTML = `
       <div style="flex:1">
-        <div style="font-weight:600">${data.key.name}</div>
-        <div class="key-val">${data.key.prefix}…</div>
+        <div style="font-weight:600">${esc(data.key.name)}</div>
+        <div class="key-val">${esc(data.key.prefix)}…</div>
       </div>
-      <div style="color:var(--text-muted);font-size:.74rem">Created ${data.key.created_at}</div>
+      <div style="color:var(--text-muted);font-size:.74rem">Created ${esc(data.key.created_at)}</div>
       <button class="act-btn danger" style="padding:5px 10px;font-size:.72rem;color:var(--danger)" onclick="revokeKey(${data.key.id}, this)">Revoke</button>`;
     const list = document.getElementById('key-list');
     list.querySelector('p')?.remove();  // remove "no keys yet" placeholder if present
