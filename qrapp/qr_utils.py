@@ -10,7 +10,25 @@ from io import BytesIO
 
 import qrcode
 from qrcode.constants import ERROR_CORRECT_H, ERROR_CORRECT_M
+from qrcode.exceptions import DataOverflowError
 from PIL import Image, ImageDraw, ImageFont
+
+
+class QRContentTooLong(Exception):
+    """Raised when content can't fit in a QR code even at max version.
+    Callers should catch this and show a friendly validation error instead
+    of letting a 500 reach the user."""
+    pass
+
+
+def _escape_field(value: str) -> str:
+    """Escape characters that are special in the WIFI:/vCard mini-formats
+    (backslash, semicolon, comma, colon) so values containing them don't
+    corrupt the encoded string or get mis-parsed by the scanning phone."""
+    value = str(value or '')
+    for ch in ('\\', ';', ',', ':'):
+        value = value.replace(ch, '\\' + ch)
+    return value
 
 try:
     from qrcode.image.styledpil import StyledPilImage
@@ -63,7 +81,10 @@ def generate_qr_image(data: str, size: int = 300,
         border=4,
     )
     qr.add_data(data)
-    qr.make(fit=True)
+    try:
+        qr.make(fit=True)
+    except DataOverflowError:
+        raise QRContentTooLong('Content is too long to fit in a QR code.')
 
     try:
         if style == 'rounded' and _HAS_STYLED:
@@ -138,7 +159,10 @@ def generate_qr_svg(data: str, color: str = '#000000', bg: str = '#ffffff') -> s
         border=4,
     )
     qr.add_data(data)
-    qr.make(fit=True)
+    try:
+        qr.make(fit=True)
+    except DataOverflowError:
+        raise QRContentTooLong('Content is too long to fit in a QR code.')
 
     matrix = qr.get_matrix()
     n = len(matrix)
@@ -173,27 +197,35 @@ def build_url(url: str) -> str:
 
 
 def build_vcard(d: dict) -> str:
+    # vCard's TEXT value type uses the same backslash/comma/semicolon
+    # escaping as WIFI: below (RFC 6350 §3.4); newlines also need escaping
+    # so a multi-line address can't break the record.
+    def esc(v):
+        v = _escape_field(v)
+        return v.replace('\n', '\\n')
+
     fn = f"{d.get('first_name','')} {d.get('last_name','')}".strip()
     return (
         "BEGIN:VCARD\r\n"
         "VERSION:3.0\r\n"
-        f"FN:{fn}\r\n"
-        f"N:{d.get('last_name','')};{d.get('first_name','')};;;\r\n"
-        f"ORG:{d.get('organization','')}\r\n"
-        f"TITLE:{d.get('title','')}\r\n"
+        f"FN:{esc(fn)}\r\n"
+        f"N:{esc(d.get('last_name',''))};{esc(d.get('first_name',''))};;;\r\n"
+        f"ORG:{esc(d.get('organization',''))}\r\n"
+        f"TITLE:{esc(d.get('title',''))}\r\n"
         f"TEL;TYPE=WORK,VOICE:{d.get('phone','')}\r\n"
         f"TEL;TYPE=CELL:{d.get('mobile','')}\r\n"
         f"EMAIL:{d.get('email','')}\r\n"
         f"URL:{d.get('website','')}\r\n"
-        f"ADR;TYPE=WORK:;;{d.get('address','')};;;;\r\n"
+        f"ADR;TYPE=WORK:;;{esc(d.get('address',''))};;;;\r\n"
         "END:VCARD"
     )
 
 
 def build_wifi(ssid: str, password: str, encryption: str) -> str:
+    ssid = _escape_field(ssid)
     if encryption == 'nopass':
         return f"WIFI:T:nopass;S:{ssid};P:;;"
-    return f"WIFI:T:{encryption};S:{ssid};P:{password};;"
+    return f"WIFI:T:{encryption};S:{ssid};P:{_escape_field(password)};;"
 
 
 def build_sms(phone: str, message: str) -> str:
@@ -201,6 +233,8 @@ def build_sms(phone: str, message: str) -> str:
 
 
 def build_email(email: str, subject: str, body: str) -> str:
+    subject = _escape_field(subject)
+    body = _escape_field(body)
     return f"MATMSG:TO:{email};SUB:{subject};BODY:{body};;"
 
 
