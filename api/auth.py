@@ -9,11 +9,16 @@ from .models import APIKey, hash_api_key
 
 
 def get_api_key(request):
-    """Extract API key from Authorization header or ?api_key= param."""
+    """Extract API key from the Authorization header (the only documented
+    method — see templates/api/docs.html). A ?api_key= query-string
+    fallback used to exist here too, but query strings end up in server
+    access logs, browser history, and any Referer header the page sends —
+    exactly where a bearer secret shouldn't be. Removed rather than kept
+    "just in case"; nothing in this codebase's docs or tests used it."""
     auth = request.META.get('HTTP_AUTHORIZATION', '')
     if auth.startswith('Bearer '):
         return auth[7:].strip()
-    return request.GET.get('api_key', '').strip()
+    return ''
 
 
 def authenticate_api_key(request):
