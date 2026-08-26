@@ -193,6 +193,39 @@ class ViewTests(TestCase):
         d = self._gen({'type': 'location', 'latitude': '30.0', 'longitude': '31.0'})
         self.assertTrue(d['ok'])
 
+    # regression: content too long used to raise an unhandled
+    # DataOverflowError (500) instead of a clean validation error, since
+    # no form field had a max_length. See AUDIT_SUMMARY.md session re-audit.
+    def test_oversized_text_returns_clean_error_not_500(self):
+        r = self.c.post('/app/api/generate/', {'type': 'text', 'text': 'x' * 5000})
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        self.assertFalse(d['ok'])
+
+    def test_oversized_wifi_ssid_rejected(self):
+        d = self._gen({'type': 'wifi', 'ssid': 'x' * 100, 'password': 'pw', 'encryption': 'WPA'})
+        self.assertFalse(d['ok'])
+
+    def test_location_out_of_range_rejected(self):
+        d = self._gen({'type': 'location', 'latitude': '999', 'longitude': '31.0'})
+        self.assertFalse(d['ok'])
+
+    # regression: WiFi/vCard builders didn't escape control characters (;
+    # , : \), so an SSID/name containing them produced a QR that scanners
+    # would misparse. Just check the special characters survive into the
+    # encoded content in escaped form rather than corrupting the format.
+    def test_wifi_ssid_with_special_chars_is_escaped(self):
+        from .qr_utils import build_wifi
+        content = build_wifi('My;Net,work', 'pw', 'WPA')
+        self.assertIn('S:My\\;Net\\,work;', content)
+
+    def test_vcard_with_special_chars_is_escaped(self):
+        from .qr_utils import build_vcard
+        content = build_vcard({'first_name': 'A;B', 'last_name': 'C,D', 'phone': '', 'mobile': '',
+                                'email': '', 'organization': '', 'title': '', 'address': '', 'website': ''})
+        self.assertIn('A\\;B', content)
+        self.assertIn('C\\,D', content)
+
     # generate – validation errors
     def test_invalid_type(self):
         d = self._gen({'type': 'bad'})
@@ -453,3 +486,90 @@ class HistorySearchTests(TestCase):
         c2 = Client()
         r = c2.get('/app/api/export-csv/')
         self.assertEqual(r.status_code, 302)  # export_csv uses @login_required (page-style), not json_login_required
+
+
+class FavoriteAndDuplicateTests(TestCase):
+    """New feature: starring a QR code for quick access, and one-click
+    duplicating an existing one."""
+
+    def setUp(self):
+        self.c = Client()
+        self.user = User.objects.create_user('favdup@example.com', 'favdup@example.com', 'pass12345')
+        self.c.login(username='favdup@example.com', password='pass12345')
+        self.other = User.objects.create_user('other@example.com', 'other@example.com', 'pass12345')
+        self.q = QRCode.objects.create(user=self.user, qr_type='text', label='Mine', content='hello')
+
+    def test_toggle_favorite_on_then_off(self):
+        r1 = self.c.post(f'/app/api/favorite/{self.q.pk}/')
+        d1 = r1.json()
+        self.assertTrue(d1['ok'])
+        self.assertTrue(d1['is_favorite'])
+        self.q.refresh_from_db()
+        self.assertTrue(self.q.is_favorite)
+
+        r2 = self.c.post(f'/app/api/favorite/{self.q.pk}/')
+        d2 = r2.json()
+        self.assertFalse(d2['is_favorite'])
+        self.q.refresh_from_db()
+        self.assertFalse(self.q.is_favorite)
+
+    def test_cannot_favorite_someone_elses_qr(self):
+        other_q = QRCode.objects.create(user=self.other, qr_type='text', content='not yours')
+        r = self.c.post(f'/app/api/favorite/{other_q.pk}/')
+        self.assertEqual(r.status_code, 404)
+        other_q.refresh_from_db()
+        self.assertFalse(other_q.is_favorite)
+
+    def test_favorites_filter_on_history(self):
+        QRCode.objects.create(user=self.user, qr_type='text', content='not starred')
+        self.q.is_favorite = True
+        self.q.save()
+        d = self.c.get('/app/api/history/?favorites=1').json()
+        self.assertEqual(d['total'], 1)
+        self.assertEqual(d['items'][0]['id'], self.q.pk)
+
+    def test_duplicate_creates_independent_copy(self):
+        r = self.c.post(f'/app/api/duplicate/{self.q.pk}/')
+        d = r.json()
+        self.assertTrue(d['ok'])
+        self.assertNotEqual(d['id'], self.q.pk)
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 2)
+        copy = QRCode.objects.get(pk=d['id'])
+        self.assertEqual(copy.content, self.q.content)
+        self.assertIn('copy', copy.label)
+        # independence: changing the copy must not touch the original
+        copy.label = 'Changed'
+        copy.save()
+        self.q.refresh_from_db()
+        self.assertEqual(self.q.label, 'Mine')
+
+    def test_cannot_duplicate_someone_elses_qr(self):
+        other_q = QRCode.objects.create(user=self.other, qr_type='text', content='not yours')
+        r = self.c.post(f'/app/api/duplicate/{other_q.pk}/')
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 1)
+
+    def test_duplicate_respects_monthly_quota(self):
+        from billing.models import Plan, Subscription
+        plan = Plan.objects.get(code='free')
+        plan.max_qr_per_month = 1
+        plan.save()
+        Subscription.objects.filter(user=self.user).delete()
+        Subscription.objects.create(user=self.user, plan=plan, status='active')
+        # self.q from setUp already counts as this month's 1 QR -> quota is used up
+        r = self.c.post(f'/app/api/duplicate/{self.q.pk}/')
+        d = r.json()
+        self.assertFalse(d['ok'])
+        self.assertEqual(d['code'], 'quota_exceeded')
+        self.assertEqual(r.status_code, 429)
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 1)
+
+    def test_favorite_requires_login(self):
+        c2 = Client()
+        r = c2.post(f'/app/api/favorite/{self.q.pk}/')
+        self.assertEqual(r.status_code, 401)
+
+    def test_duplicate_requires_login(self):
+        c2 = Client()
+        r = c2.post(f'/app/api/duplicate/{self.q.pk}/')
+        self.assertEqual(r.status_code, 401)
