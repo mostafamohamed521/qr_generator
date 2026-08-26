@@ -128,6 +128,8 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 
 from .models import EmailVerificationToken
 
@@ -183,15 +185,18 @@ def reset_password_view(request, uidb64, token):
     if request.method == 'POST':
         pw1 = request.POST.get('password1', '')
         pw2 = request.POST.get('password2', '')
-        if not pw1 or len(pw1) < 8:
-            error = 'Password must be at least 8 characters.'
-        elif pw1 != pw2:
+        if pw1 != pw2:
             error = "Passwords don't match."
         else:
-            user.set_password(pw1)
-            user.save()
-            messages.success(request, 'Password reset! You can now log in.')
-            return redirect('accounts:login')
+            try:
+                validate_password(pw1, user=user)
+            except ValidationError as e:
+                error = ' '.join(e.messages)
+            else:
+                user.set_password(pw1)
+                user.save()
+                messages.success(request, 'Password reset! You can now log in.')
+                return redirect('accounts:login')
 
     return render(request, 'accounts/reset_password.html', {'invalid': False, 'error': error})
 
@@ -223,6 +228,10 @@ def verify_email_view(request, token):
     return render(request, 'accounts/verify_email.html', {'success': True})
 
 
+from django.views.decorators.http import require_POST
+
+
+@require_POST
 def resend_verification_view(request):
     if not request.user.is_authenticated:
         return redirect('accounts:login')
