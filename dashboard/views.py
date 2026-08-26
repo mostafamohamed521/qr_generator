@@ -59,13 +59,12 @@ def stats(request):
     # QR by type
     qr_by_type = list(QRCode.objects.values('qr_type').annotate(count=Count('id')).order_by('-count'))
 
-    # Top 5 most active users
+    # Top 5 most active users by QR codes created
     top_users = list(
-        User.objects.order_by('-date_joined')[:5]
-        .values('id','email','first_name','last_name','is_active','date_joined')
+        User.objects.annotate(qr_count=Count('qr_codes', distinct=True))
+        .order_by('-qr_count', '-date_joined')[:5]
+        .values('id', 'email', 'first_name', 'last_name', 'is_active', 'date_joined', 'qr_count')
     )
-    for u in top_users:
-        u['qr_count'] = 0
     for u in top_users:
         u['date_joined'] = u['date_joined'].strftime('%d %b %Y') if u['date_joined'] else ''
         u['name'] = f"{u['first_name']} {u['last_name']}".strip() or u['email']
@@ -110,7 +109,7 @@ def users_list(request):
     q       = request.GET.get('q','').strip()
     page    = max(1, int(request.GET.get('page',1)))
     per     = 20
-    qs = User.objects.order_by('-date_joined')
+    qs = User.objects.annotate(qr_count=Count('qr_codes', distinct=True)).order_by('-date_joined')
     if q:
         qs = qs.filter(Q(email__icontains=q)|Q(first_name__icontains=q)|Q(last_name__icontains=q))
     total = qs.count()
@@ -119,7 +118,7 @@ def users_list(request):
     return JsonResponse({'ok':True,'total':total,'pages':pages,'page':page,'users':[{
         'id': u.id, 'email': u.email,
         'name': f"{u.first_name} {u.last_name}".strip() or '—',
-        'qr_count': 0,
+        'qr_count': u.qr_count,
         'is_active': u.is_active, 'is_staff': u.is_staff,
         'date_joined': u.date_joined.strftime('%d %b %Y') if u.date_joined else '',
     } for u in qs]})
@@ -161,6 +160,22 @@ def delete_user(request, pk):
         return JsonResponse({'ok':False,'error':"Can't delete yourself"},status=400)
     if user.is_superuser and not request.user.is_superuser:
         return JsonResponse({'ok':False,'error':'Only a superuser can delete a superuser account'},status=403)
+
+    # Team.owner is on_delete=CASCADE — deleting a user who owns a team with
+    # other members would silently wipe that team out from under its other
+    # members. Same safeguard as the self-service delete_account_view.
+    owned_teams_with_others = [
+        t for t in Team.objects.filter(owner=user)
+        if t.members.exclude(user=user).exists()
+    ]
+    if owned_teams_with_others:
+        return JsonResponse({
+            'ok': False,
+            'error': 'This user owns team(s) with other members: '
+                     + ', '.join(t.name for t in owned_teams_with_others)
+                     + '. Transfer ownership before deleting this account.',
+        }, status=400)
+
     email = user.email
     user.delete()
     AuditLogEntry.objects.create(user=request.user, team=None,
@@ -176,8 +191,8 @@ def export_users_csv(request):
     response.write('\ufeff')
     w = csv.writer(response)
     w.writerow(['ID','Email','Name','QR Count','Active','Staff','Joined'])
-    for u in User.objects.order_by('-date_joined'):
+    for u in User.objects.annotate(qr_count=Count('qr_codes', distinct=True)).order_by('-date_joined'):
         w.writerow([u.id,u.email,f"{u.first_name} {u.last_name}".strip(),
-                    0, u.is_active,u.is_staff,
+                    u.qr_count, u.is_active,u.is_staff,
                     u.date_joined.strftime('%Y-%m-%d') if u.date_joined else ''])
     return response
