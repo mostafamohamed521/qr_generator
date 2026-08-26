@@ -7,26 +7,26 @@
 <style>
 .team-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-top:18px; }
 .team-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px; box-shadow:var(--shadow); position:relative; animation:fade-up .35s ease both; transition:box-shadow .2s; cursor:pointer; }
-.team-card:hover { box-shadow:0 6px 28px rgba(109,77,251,.18); }
+.team-card:hover { box-shadow:0 6px 28px rgba(27,51,88,.18); }
 .team-card.active-team { border-color:var(--accent); }
 .team-card.active-team::before { content:'Active'; position:absolute; top:12px; right:12px; padding:2px 9px; border-radius:20px; font-size:.68rem; font-weight:700; background:var(--accent-soft); color:var(--accent); }
-.team-avatar { width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:1.4rem; color:#fff; margin-bottom:14px; }
-.team-name { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1rem; margin-bottom:4px; }
+.team-avatar { width:48px; height:48px; border-radius:12px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',sans-serif; font-weight:700; font-size:1.4rem; color:#fff; margin-bottom:14px; }
+.team-name { font-family:'Fraunces',sans-serif; font-weight:700; font-size:1rem; margin-bottom:4px; }
 .team-meta { font-size:.78rem; color:var(--text-muted); margin-bottom:14px; }
 .role-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:.68rem; font-weight:700; }
 .role-owner { background:rgba(240,196,25,.15); color:#c9980a; }
-.role-admin { background:rgba(109,77,251,.12); color:var(--accent); }
+.role-admin { background:rgba(27,51,88,.12); color:var(--accent); }
 .role-member { background:var(--hover); color:var(--text-muted); }
 .team-actions { display:flex; gap:6px; flex-wrap:wrap; }
 .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:none; align-items:center; justify-content:center; }
 .modal-backdrop.open { display:flex; }
 .modal { background:var(--surface-solid); border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; width:calc(100% - 40px); max-width:520px; box-shadow:var(--shadow); animation:fade-up .25s ease; position:relative; max-height:90vh; overflow-y:auto; }
-.modal h2 { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:18px; }
+.modal h2 { font-family:'Fraunces',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:18px; }
 .modal-close { position:absolute; top:14px; right:14px; background:none; border:1px solid var(--border); border-radius:8px; padding:3px 9px; cursor:pointer; color:var(--text-muted); }
 .mf { margin-bottom:14px; }
 .mf label { display:block; font-size:.82rem; font-weight:600; margin-bottom:6px; }
 .member-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
-.member-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.8rem; color:#fff; flex-shrink:0; }
+.member-avatar { width:34px; height:34px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.8rem; color:#fff; flex-shrink:0; }
 .member-info { flex:1; min-width:0; }
 .member-name { font-weight:600; font-size:.84rem; }
 .member-email { font-size:.72rem; color:var(--text-muted); }
@@ -38,7 +38,7 @@
 
 {% block content %}
 <div class="header" style="margin-bottom:30px">
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:6px">Teams</h1>
+  <h1 style="font-family:'Fraunces',sans-serif;font-size:1.8rem;font-weight:700;margin-bottom:6px">Teams</h1>
   <p style="color:var(--text-muted)">Collaborate with your team on shared QR codes</p>
 </div>
 
@@ -81,6 +81,17 @@
 <script>
 const TAPI = '/teams/api/';
 
+// Delegated once here (team-grid's innerHTML gets rebuilt on every
+// loadTeams() call) so a team name never has to be interpolated into a
+// JS string literal — a name containing a quote could otherwise break
+// out of onclick="openTeam(id,'name','role')" and run script for anyone
+// who views the team list, including other members/owners.
+document.getElementById('team-grid').addEventListener('click', (e) => {
+  if (e.target.closest('.team-actions')) return; // handled by its own onclick(stopPropagation) + buttons
+  const card = e.target.closest('[data-team-id]');
+  if (card) openTeam(Number(card.dataset.teamId), card.dataset.teamName, card.dataset.teamRole);
+});
+
 async function loadTeams() {
   const res  = await fetch(`${TAPI}my/`);
   const data = await res.json();
@@ -96,7 +107,7 @@ async function loadTeams() {
     return;
   }
   grid.innerHTML = data.teams.map((t, i) => `
-    <div class="team-card ${t.active ? 'active-team' : ''}" style="animation-delay:${i * .05}s" onclick="openTeam(${t.id}, '${esc(t.name)}', '${t.role}')">
+    <div class="team-card ${t.active ? 'active-team' : ''}" style="animation-delay:${i * .05}s" data-team-id="${t.id}" data-team-name="${esc(t.name)}" data-team-role="${esc(t.role)}">
       <div class="team-avatar">${esc(t.name[0].toUpperCase())}</div>
       <div class="team-name">${esc(t.name)}</div>
       <div class="team-meta">${t.members} member${t.members !== 1 ? 's' : ''}</div>
