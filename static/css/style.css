@@ -428,7 +428,7 @@ html[dir="rtl"] .pass-toggle { right: auto; left: 12px; }
      the first DOM element (the logo) on the right and the last
      (nav-controls) on the left -- the opposite of what's wanted -- so
      row-reverse here flips it back to the requested physical layout. */
-  html[dir="rtl"] .nav { flex-direction: row-reverse; }
+  html[dir="rtl"] .nav { flex-direction: row; }
 
   .mobile-menu-btn { display: flex; }
   .nav-links { position: fixed; top: 64px; left: 0; right: 0; bottom: 0;
