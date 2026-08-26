@@ -5,12 +5,12 @@
 <div style="max-width:440px;margin:60px auto;text-align:center">
   <div class="stat-card" style="padding:36px">
     {% if success %}
-      <div style="font-size:3rem;margin-bottom:16px">✅</div>
-      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.4rem;margin-bottom:8px">{% trans "Email verified!" %}</h1>
+      <div style="display:flex;justify-content:center;color:#5c7a63;margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="52" height="52" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <h1 style="font-family:'Fraunces',sans-serif;font-weight:700;font-size:1.4rem;margin-bottom:8px">{% trans "Email verified!" %}</h1>
       <p style="color:var(--text-muted);margin-bottom:20px">{% trans "Your email address has been confirmed." %}</p>
     {% else %}
-      <div style="font-size:3rem;margin-bottom:16px">⚠️</div>
-      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.4rem;margin-bottom:8px">{% trans "Link invalid" %}</h1>
+      <div style="display:flex;justify-content:center;color:var(--danger);margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="52" height="52"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <h1 style="font-family:'Fraunces',sans-serif;font-weight:700;font-size:1.4rem;margin-bottom:8px">{% trans "Link invalid" %}</h1>
       <p style="color:var(--text-muted);margin-bottom:20px">{% trans "This verification link is invalid or has already been used." %}</p>
     {% endif %}
     <a href="{% url 'qrapp:index' %}" class="btn-primary" style="text-decoration:none;display:inline-flex;padding:11px 24px">{% trans "Go to Dashboard" %}</a>
