@@ -8,11 +8,14 @@ Before every deploy, run the full automated test suite:
 python manage.py test
 ```
 
-128 tests cover authentication, password reset, email verification, 2FA,
-QR generation (all 8 types), Dynamic QR + redirects, webhooks (real HTTP
-delivery + HMAC signature verification), teams/permissions, billing plans,
-and the public REST API. All should pass (`OK`) — if anything fails, do not
-deploy until it's fixed.
+237 tests cover authentication, password reset, email verification, 2FA,
+QR generation (all 8 types), favoriting and duplicating QR codes, Dynamic
+QR + redirects, webhooks (real HTTP delivery + HMAC signature
+verification), teams/permissions, billing plans (including that Cancel
+actually cancels the real Stripe subscription, not just the local
+record), the admin dashboard (including that deleting a user can't
+silently wipe out a team they own), and the public REST API. All should
+pass (`OK`) — if anything fails, do not deploy until it's fixed.
 
 Run a single app's tests during development:
 ```bash
@@ -29,6 +32,13 @@ python manage.py test api -v 2        # REST API, webhooks
 DJANGO_SECRET_KEY=<generate with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())">
 DJANGO_DEBUG=false
 DJANGO_ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+
+# Only set this if the nginx config below (or another reverse proxy) sits
+# in front of Django AND strips any client-supplied X-Forwarded-For /
+# X-Forwarded-Proto before setting its own. Without a proxy doing that,
+# leave it unset — turning it on regardless lets a client spoof its own
+# IP/scheme and bypass rate limiting and the HTTPS redirect.
+DJANGO_TRUST_PROXY_HEADERS=true
 
 # Email (optional — defaults to console backend if unset, which just logs emails)
 DJANGO_EMAIL_HOST=smtp.sendgrid.net
@@ -91,7 +101,12 @@ server {
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # $remote_addr, not $proxy_add_x_forwarded_for -- the latter
+        # *appends* to whatever X-Forwarded-For the client already sent,
+        # so a client could still smuggle a spoofed IP through as the
+        # first entry in the list. This replaces it outright, so the
+        # header always reflects nginx's own view of who connected.
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
