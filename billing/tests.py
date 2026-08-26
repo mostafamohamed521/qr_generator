@@ -74,6 +74,55 @@ class BillingTests(TestCase):
         self.assertTrue(d['allows_api'])
 
 
+@override_settings(STRIPE_SECRET_KEY='sk_test_fake')
+class CancelActuallyCancelsStripeTests(TestCase):
+    """Regression test for the bug where clicking "Cancel" only updated our
+    own DB — the real Stripe subscription kept billing the customer. See
+    AUDIT_SUMMARY.md, session re-audit, billing section."""
+
+    def setUp(self):
+        self.c = Client()
+        self.user = User.objects.create_user('cancelme@example.com', 'cancelme@example.com', 'pass12345')
+        self.c.login(username='cancelme@example.com', password='pass12345')
+        pro = Plan.objects.get(code='pro')
+        self.sub = Subscription.objects.create(
+            user=self.user, plan=pro, status='active',
+            stripe_subscription_id='sub_real123',
+        )
+
+    @patch('billing.views.stripe.Subscription.cancel')
+    def test_cancel_calls_stripe_and_downgrades_locally(self, mock_cancel):
+        r = self.c.post('/billing/api/cancel/')
+        d = r.json()
+        self.assertTrue(d['ok'])
+        mock_cancel.assert_called_once_with('sub_real123')
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.plan.code, 'free')
+        self.assertEqual(self.sub.status, 'canceled')
+
+    @patch('billing.views.stripe.Subscription.cancel')
+    def test_cancel_surfaces_stripe_error_without_downgrading(self, mock_cancel):
+        import stripe
+        mock_cancel.side_effect = stripe.error.APIConnectionError('network down')
+        r = self.c.post('/billing/api/cancel/')
+        d = r.json()
+        self.assertFalse(d['ok'])
+        self.assertEqual(r.status_code, 502)
+        # must NOT have downgraded locally if we couldn't actually cancel with Stripe
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.plan.code, 'pro')
+        self.assertEqual(self.sub.status, 'active')
+
+    @patch('billing.views.stripe.Subscription.cancel')
+    def test_cancel_tolerates_already_cancelled_on_stripes_side(self, mock_cancel):
+        import stripe
+        mock_cancel.side_effect = stripe.error.InvalidRequestError('No such subscription', param=None)
+        r = self.c.post('/billing/api/cancel/')
+        self.assertTrue(r.json()['ok'])
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.plan.code, 'free')
+
+
 @override_settings(STRIPE_SECRET_KEY='')
 class UpgradeWithoutStripeConfiguredTests(TestCase):
     """Default state of this project: no Stripe keys set at all."""
