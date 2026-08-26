@@ -30,6 +30,7 @@ class QRCode(models.Model):
     qr_style   = models.CharField(max_length=20, default='square')
     image_b64  = models.TextField(blank=True, default='')
     scan_count = models.PositiveIntegerField(default=0)
+    is_favorite = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
