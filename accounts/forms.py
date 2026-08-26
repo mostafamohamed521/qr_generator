@@ -12,6 +12,11 @@ class RegisterForm(forms.Form):
 
     def clean_email(self):
         email = self.cleaned_data['email'].lower().strip()
+        # Email becomes the User.username, which is capped at 150 chars —
+        # without this check a long-but-valid email passes EmailField
+        # validation and then raises an unhandled DB error in save().
+        if len(email) > 150:
+            raise ValidationError('Email address is too long.')
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError('An account with this email already exists.')
         return email
