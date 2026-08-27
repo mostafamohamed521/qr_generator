@@ -222,11 +222,23 @@ def api_dynamic_create(request):
     if not target_url or not target_url.startswith(('http://', 'https://')) or len(target_url) > 2000:
         return JsonResponse({'ok': False, 'error': 'A valid target_url is required'}, status=400)
     label = payload.get('label', '').strip()[:120]
-    link  = DynamicLink.objects.create(user=request.api_user, target_url=target_url, label=label)
-    base  = request.build_absolute_uri('/')
-    redirect_url = f"{base}r/{link.short_code}/"
-    img   = generate_qr_image(redirect_url, size=300)
-    DynamicLink.objects.filter(pk=link.pk).update(image_b64=img)
+
+    from billing.views import reserve_dynamic_quota
+    with transaction.atomic():
+        allowed, remaining = reserve_dynamic_quota(request.api_user, requested=1)
+        if not allowed:
+            return JsonResponse({
+                'ok': False, 'code': 'quota_exceeded',
+                'error': 'Dynamic QR codes are a Pro feature. Upgrade to create one.'
+                         if remaining == 0 else
+                         "You've reached your Dynamic QR code limit. Upgrade to Pro for more.",
+            }, status=402)
+
+        link  = DynamicLink.objects.create(user=request.api_user, target_url=target_url, label=label)
+        base  = request.build_absolute_uri('/')
+        redirect_url = f"{base}r/{link.short_code}/"
+        img   = generate_qr_image(redirect_url, size=300)
+        DynamicLink.objects.filter(pk=link.pk).update(image_b64=img)
     return JsonResponse({'ok': True, 'link': {
         'id':           link.id, 'short_code': link.short_code,
         'redirect_url': redirect_url, 'target_url': link.target_url,

@@ -248,6 +248,39 @@ def reserve_qr_quota(user, requested=1):
     return check_qr_limit(user, requested=requested)
 
 
+def check_dynamic_limit(user, requested=1):
+    """
+    Return (allowed: bool, remaining: int|None) for creating `requested`
+    more Dynamic QR links. Unlike QR codes, dynamic links aren't a
+    monthly-refreshing quota -- they're a standing resource (the redirect
+    has to keep working indefinitely), so this counts ALL of the user's
+    existing links, not just ones created in some recent window.
+    max_dynamic_links == 0 means unlimited (same convention as
+    max_qr_per_month) -- the free plan's seed data sets it to a real 0,
+    i.e. the feature isn't available at all on that plan.
+    """
+    try:
+        sub = Subscription.objects.select_related('plan').get(user=user)
+    except Subscription.DoesNotExist:
+        return True, None
+    max_links = sub.plan.max_dynamic_links
+    if max_links == 0:
+        return True, None  # unlimited
+    from qrapp.models import DynamicLink
+    used = DynamicLink.objects.filter(user=user).count()
+    remaining = max_links - used
+    return remaining >= requested, remaining
+
+
+def reserve_dynamic_quota(user, requested=1):
+    """Same atomic locking pattern as reserve_qr_quota, for Dynamic QR
+    links. Must be called inside transaction.atomic(), with the caller
+    creating the DynamicLink row(s) before that transaction commits."""
+    sub = _get_or_create_sub(user)
+    Subscription.objects.select_for_update().get(pk=sub.pk)
+    return check_dynamic_limit(user, requested=requested)
+
+
 # ── Stripe webhook ──────────────────────────────────────────────────────────
 @csrf_exempt
 @require_POST

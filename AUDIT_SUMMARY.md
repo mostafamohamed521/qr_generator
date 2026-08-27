@@ -409,3 +409,50 @@ beyond sizing:
   very narrow phones with no fallback) — everything else checked
   (dashboard grids, the users table) already had working responsive
   rules in place.
+
+## Session — more QR shapes, and two real generate-flow bugs
+Asked for more QR shapes, confirmed colors (already existed), and asked
+for the history to only be created once per generate, plus a way to make
+a code Dynamic straight from the main generator.
+
+- **Two new shapes**: "Dots" (circular modules) and "Gapped" (small
+  squares with visible gaps between them), alongside the existing Square
+  and Rounded — in the main generator, the bulk generator, and the API
+  docs' parameter description. Colors were already fully supported
+  (QR/background color pickers + transparent-background toggle in the
+  Customization panel) — nothing to add there.
+- **The actual cause of "history should only be created once":** the
+  form's live preview (auto-re-renders ~600ms after every pause while
+  typing or adjusting colors/style) was hitting the *exact same*
+  `/app/api/generate/` endpoint as a real Generate click — meaning every
+  color tweak, every debounced keystroke, created a **permanent QRCode
+  row and spent one unit of that month's quota**, long before the user
+  ever clicked Generate. Composing a single code while trying a few
+  colors could burn through a large chunk of a free account's 50/month
+  limit on throwaway drafts that were never meant to be saved at all.
+  Fixed with a `preview=1` flag: live preview now renders the image
+  without creating a row or touching quota; only an explicit Generate
+  click persists anything. Covered by new tests (20 simulated live-preview
+  edits create zero rows and spend no quota; the real click still counts
+  exactly as before).
+- Also fixed the smaller, related issue from last time: generate() used
+  to make the frontend fetch `/app/api/history/` a second time just to
+  find the id of the row it had just created. The endpoint now returns
+  `id` directly in its own response, so that redundant second request is
+  gone.
+- **New: "Make this a Dynamic QR code" checkbox**, in the URL section of
+  the main generator, wired to the existing dynamic-link-create endpoint
+  instead of the plain generate endpoint when checked (only on a real
+  Generate click, never during live preview — same reasoning as above,
+  otherwise it would create a new persistent DynamicLink on every paused
+  keystroke too). Shows a "manage it or change its destination anytime"
+  link to the Dynamic page after creating one.
+- **Found while wiring that in: `Plan.max_dynamic_links` existed in the
+  model and was seeded (0 = unavailable on Free, unlimited on Pro) but
+  was never actually checked anywhere** — free-plan users could create
+  unlimited Dynamic QR codes for free despite it being listed as a Pro
+  feature on the pricing page, in both the session-based endpoint and the
+  public REST API. Added `check_dynamic_limit`/`reserve_dynamic_quota` in
+  billing/views.py (same atomic-locking pattern as the existing QR quota
+  functions) and wired them into both create endpoints, with tests
+  confirming Free is blocked and Pro is allowed.

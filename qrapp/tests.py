@@ -127,6 +127,56 @@ class ModelTests(TestCase):
 
 # ── View tests ───────────────────────────────────────────────────────────────
 
+class PreviewModeTests(TestCase):
+    """Regression test for the bug where the form's live-preview (auto
+    re-renders ~600ms after every edit while composing a code) hit the
+    same endpoint as a real Generate click -- every color/style tweak
+    created a permanent QRCode row and spent a unit of monthly quota
+    before the user ever clicked Generate. preview=1 must render without
+    persisting anything or touching quota; a real (non-preview) request
+    must still behave exactly as before."""
+
+    def setUp(self):
+        self.c = Client()
+        self.user = User.objects.create_user('previewtest@example.com', 'previewtest@example.com', 'pass12345')
+        self.c.login(username='previewtest@example.com', password='pass12345')
+
+    def test_preview_does_not_create_history_row(self):
+        d = self.c.post('/app/api/generate/', {'type': 'text', 'text': 'hello', 'preview': '1'}).json()
+        self.assertTrue(d['ok'])
+        self.assertIn('image', d)
+        self.assertNotIn('id', d)
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 0)
+
+    def test_preview_does_not_spend_quota(self):
+        from billing.models import Plan, Subscription
+        plan = Plan.objects.get(code='free')
+        plan.max_qr_per_month = 1
+        plan.save()
+        Subscription.objects.create(user=self.user, plan=plan, status='active')
+
+        # 20 "live preview" edits while composing -- none of these should count
+        for i in range(20):
+            d = self.c.post('/app/api/generate/', {'type': 'text', 'text': f'draft {i}', 'preview': '1'}).json()
+            self.assertTrue(d['ok'])
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 0)
+
+        # the real generate click still works and still counts against quota
+        d = self.c.post('/app/api/generate/', {'type': 'text', 'text': 'final'}).json()
+        self.assertTrue(d['ok'])
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 1)
+
+        d2 = self.c.post('/app/api/generate/', {'type': 'text', 'text': 'one too many'})
+        self.assertFalse(d2.json()['ok'])
+        self.assertEqual(d2.json()['code'], 'quota_exceeded')
+
+    def test_non_preview_generate_unaffected(self):
+        d = self.c.post('/app/api/generate/', {'type': 'text', 'text': 'hello'}).json()
+        self.assertTrue(d['ok'])
+        self.assertIn('id', d)
+        self.assertEqual(QRCode.objects.filter(user=self.user).count(), 1)
+
+
 class ViewTests(TestCase):
 
     def setUp(self):
@@ -388,6 +438,30 @@ class DynamicQRTests(TestCase):
         r = c2.post('/app/api/dynamic/create/',
             data='{"target_url": "https://example.com"}', content_type='application/json')
         self.assertEqual(r.status_code, 401)
+
+    def test_free_plan_cannot_create_dynamic_link(self):
+        # Regression: Plan.max_dynamic_links existed and the free plan's
+        # seed data set it to 0 (meaning "not available at all", same
+        # convention as max_qr_per_month), but dynamic_create() never
+        # actually checked it -- free-plan users could create unlimited
+        # dynamic links despite this being listed as a Pro-only feature.
+        from billing.models import Plan, Subscription
+        free = Plan.objects.get(code='free')
+        Subscription.objects.create(user=self.user, plan=free, status='active')
+        d = self.c.post('/app/api/dynamic/create/',
+            data='{"target_url": "https://example.com"}', content_type='application/json').json()
+        self.assertFalse(d['ok'])
+        self.assertEqual(d['code'], 'quota_exceeded')
+        self.assertEqual(DynamicLink.objects.filter(user=self.user).count(), 0)
+
+    def test_pro_plan_can_create_dynamic_link(self):
+        from billing.models import Plan, Subscription
+        pro = Plan.objects.get(code='pro')
+        Subscription.objects.create(user=self.user, plan=pro, status='active')
+        d = self.c.post('/app/api/dynamic/create/',
+            data='{"target_url": "https://example.com"}', content_type='application/json').json()
+        self.assertTrue(d['ok'])
+        self.assertEqual(DynamicLink.objects.filter(user=self.user).count(), 1)
 
     # dynamic_redirect is deliberately public — anyone scanning the code
     # needs to be redirected, not just the link's owner. Correctly

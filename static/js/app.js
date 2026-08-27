@@ -153,13 +153,52 @@ transparentCheck?.addEventListener('change', () => {
   triggerLivePreview();
 });
 
+const makeDynamicCheck = document.getElementById('make-dynamic-check');
+
 async function runGenerate({ silent = false } = {}) {
   if (!genBtn) return;
   if (!silent) { genBtn.classList.add('loading'); genBtn.disabled = true; }
 
+  // "Make this a Dynamic QR" only applies to a real, deliberate Generate
+  // click -- never during live preview, which would otherwise create a
+  // new persistent DynamicLink (and burn a unit of that quota) on every
+  // paused keystroke, the exact same problem just fixed for plain
+  // QRCode generation above.
+  const wantsDynamic = !silent && typeHidden?.value === 'url' && makeDynamicCheck?.checked;
+
   try {
+    if (wantsDynamic) {
+      const targetUrl = form.querySelector('[name="url"]')?.value.trim();
+      const label = form.querySelector('[name="label"]')?.value.trim() || '';
+      const qrColor = form.querySelector('[name="qr_color"]')?.value || '#000000';
+      const bgColor = transparentCheck?.checked ? 'transparent' : (form.querySelector('[name="bg_color"]')?.value || '#ffffff');
+      const qrStyle = styleHidden?.value || 'square';
+
+      const res = await fetch(`${window.APP_BASE}api/dynamic/create/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+        body: JSON.stringify({ target_url: targetUrl, label, qr_color: qrColor, bg_color: bgColor, qr_style: qrStyle }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        currentImage = data.link.image;
+        currentContent = data.link.redirect_url;
+        showQR(data.link.image);
+        toast('Dynamic QR code created!', 'ok');
+        showDynamicCreatedNote(data.link);
+      } else if (data.code === 'quota_exceeded') {
+        toast(data.error, 'err');
+      } else {
+        toast(data.error || 'Failed to create dynamic QR code', 'err');
+      }
+      genBtn.classList.remove('loading'); genBtn.disabled = false;
+      return;
+    }
+
     const fd = new FormData(form);
     if (transparentCheck?.checked) fd.set('bg_color', 'transparent');
+    if (silent) fd.set('preview', '1');
 
     const res = await fetch(`${window.APP_BASE}api/generate/`, { method: 'POST', body: fd });
     const data = await res.json();
@@ -171,8 +210,8 @@ async function runGenerate({ silent = false } = {}) {
       if (!silent) {
         loadHistory();
         toast('QR code generated!', 'ok');
-        const hist = await (await fetch(`${window.APP_BASE}api/history/`)).json();
-        if (hist.ok && hist.items.length) lastGeneratedId = hist.items[0].id;
+        lastGeneratedId = data.id;
+        hideDynamicCreatedNote();
       }
     } else if (!silent) {
       toast(data.error || 'Failed to generate QR code', 'err');
@@ -182,6 +221,17 @@ async function runGenerate({ silent = false } = {}) {
   }
 
   if (!silent) { genBtn.classList.remove('loading'); genBtn.disabled = false; }
+}
+
+function showDynamicCreatedNote(link) {
+  const el = document.getElementById('dynamic-created-note');
+  if (!el) return;
+  el.innerHTML = `${esc('This is a Dynamic QR code — ')}<a href="${window.APP_BASE}dynamic/">${esc('manage it or change its destination anytime →')}</a>`;
+  el.style.display = 'block';
+}
+function hideDynamicCreatedNote() {
+  const el = document.getElementById('dynamic-created-note');
+  if (el) el.style.display = 'none';
 }
 
 form?.addEventListener('submit', async e => {

@@ -151,6 +151,15 @@ def generate(request):
     label   = request.POST.get('label', '').strip()
     size    = _parse_size(request.POST.get('size', 300))
     logo    = request.POST.get('logo_b64', '').strip() or None
+    # Live preview (the form auto-re-renders ~600ms after every edit while
+    # composing a code) used to hit this exact same endpoint -- meaning
+    # every color tweak or paused keystroke created a *permanent* QRCode
+    # row and spent one unit of the monthly quota, long before the person
+    # ever clicked the real Generate button. A user could exhaust an
+    # entire month's quota just adjusting colors on one code. `preview=1`
+    # renders the same image without saving anything or touching quota;
+    # only an explicit (non-preview) generate persists a QRCode.
+    is_preview = request.POST.get('preview') in ('1', 'true', 'True')
 
     FormClass = FORM_MAP.get(qr_type)
     if not FormClass:
@@ -163,6 +172,13 @@ def generate(request):
     content = _build_content(qr_type, form.cleaned_data, request.POST)
     if not content:
         return JsonResponse({'ok': False, 'error': 'No content to encode'})
+
+    if is_preview:
+        try:
+            image = generate_qr_image(content, size=size, color=color, bg=bg, style=style, logo_b64=logo)
+        except QRContentTooLong as e:
+            return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+        return JsonResponse({'ok': True, 'image': image, 'content': content, 'preview': True})
 
     from billing.views import reserve_qr_quota
     with transaction.atomic():
@@ -179,14 +195,14 @@ def generate(request):
         except QRContentTooLong as e:
             return JsonResponse({'ok': False, 'error': str(e)}, status=400)
 
-        QRCode.objects.create(
+        obj = QRCode.objects.create(
             user=request.user,
             qr_type=qr_type, label=label, content=content,
             qr_color=color, bg_color=bg, qr_size=size,
             qr_style=style, image_b64=image,
         )
 
-    return JsonResponse({'ok': True, 'image': image, 'content': content})
+    return JsonResponse({'ok': True, 'image': image, 'content': content, 'id': obj.id})
 
 
 @require_GET
@@ -540,18 +556,29 @@ def dynamic_create(request):
     bg_color  = payload.get('bg_color', '#ffffff')
     qr_style  = payload.get('qr_style', 'square')
 
-    link      = DynamicLink.objects.create(
-        user=request.user,
-        target_url=target_url, label=label,
-        qr_color=qr_color, bg_color=bg_color, qr_style=qr_style,
-    )
+    from billing.views import reserve_dynamic_quota
+    with transaction.atomic():
+        allowed, remaining = reserve_dynamic_quota(request.user, requested=1)
+        if not allowed:
+            return JsonResponse({
+                'ok': False, 'code': 'quota_exceeded',
+                'error': 'Dynamic QR codes are a Pro feature. Upgrade to create one.'
+                         if remaining == 0 else
+                         "You've reached your Dynamic QR code limit. Upgrade to Pro for more.",
+            }, status=402)
 
-    # build the redirect URL that goes in the QR code
-    base = request.build_absolute_uri('/')[:-1]
-    redirect_url = f'{base}/r/{link.short_code}/'
-    img  = generate_qr_image(redirect_url, size=300, color=qr_color, bg=bg_color, style=qr_style)
-    DynamicLink.objects.filter(pk=link.pk).update(image_b64=img)
-    link.refresh_from_db()
+        link = DynamicLink.objects.create(
+            user=request.user,
+            target_url=target_url, label=label,
+            qr_color=qr_color, bg_color=bg_color, qr_style=qr_style,
+        )
+
+        # build the redirect URL that goes in the QR code
+        base = request.build_absolute_uri('/')[:-1]
+        redirect_url = f'{base}/r/{link.short_code}/'
+        img  = generate_qr_image(redirect_url, size=300, color=qr_color, bg=bg_color, style=qr_style)
+        DynamicLink.objects.filter(pk=link.pk).update(image_b64=img)
+        link.refresh_from_db()
 
     return JsonResponse({'ok': True, 'link': {
         'id':           link.id,

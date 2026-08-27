@@ -32,10 +32,22 @@ def _escape_field(value: str) -> str:
 
 try:
     from qrcode.image.styledpil import StyledPilImage
-    from qrcode.image.styles.moduledrawers import RoundedModuleDrawer, SquareModuleDrawer
+    from qrcode.image.styles.moduledrawers import (
+        RoundedModuleDrawer, SquareModuleDrawer,
+        CircleModuleDrawer, GappedSquareModuleDrawer,
+    )
     _HAS_STYLED = True
 except ImportError:
     _HAS_STYLED = False
+
+# Maps a style name to the module-drawer class that draws it. 'square' is
+# the qrcode library's own default renderer (no styled wrapper needed);
+# everything else needs the optional styledpil backend.
+_STYLE_DRAWERS = {
+    'rounded': lambda: RoundedModuleDrawer(),
+    'dots':    lambda: CircleModuleDrawer(),
+    'gapped':  lambda: GappedSquareModuleDrawer(),
+}
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -87,10 +99,11 @@ def generate_qr_image(data: str, size: int = 300,
         raise QRContentTooLong('Content is too long to fit in a QR code.')
 
     try:
-        if style == 'rounded' and _HAS_STYLED:
+        drawer_factory = _STYLE_DRAWERS.get(style)
+        if drawer_factory and _HAS_STYLED:
             img = qr.make_image(
                 image_factory=StyledPilImage,
-                module_drawer=RoundedModuleDrawer(),
+                module_drawer=drawer_factory(),
                 fill_color=color,
                 back_color=fill_bg,
             )

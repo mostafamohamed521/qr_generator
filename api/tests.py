@@ -152,6 +152,18 @@ class APIDynamicLinkTests(TestCase):
         self.assertTrue(d['ok'])
         self.assertIn('short_code', d['link'])
 
+    def test_free_plan_cannot_create_dynamic_link_via_api(self):
+        from billing.models import Plan, Subscription
+        free = Plan.objects.get(code='free')
+        Subscription.objects.create(user=self.user, plan=free, status='active')
+        r = self.c.post('/api/v1/dynamic/create/',
+            json.dumps({'target_url': 'https://example.com'}),
+            content_type='application/json', **self.auth)
+        d = r.json()
+        self.assertFalse(d['ok'])
+        self.assertEqual(d['code'], 'quota_exceeded')
+        self.assertEqual(DynamicLink.objects.filter(user=self.user).count(), 0)
+
     def test_update_dynamic_link_via_api(self):
         link = DynamicLink.objects.create(user=self.user, target_url='https://old.com')
         r = self.c.post(f'/api/v1/dynamic/{link.pk}/update/',
